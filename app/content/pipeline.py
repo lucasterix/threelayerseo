@@ -81,12 +81,21 @@ async def generate_post(
     )
     await budget.track("anthropic", "writer", site_id=site.id, post_id=existing_post.id if existing_post else None, note=primary_keyword)
 
-    # 4. Parse frontmatter + slug/title/desc
+    # 4. Parse frontmatter + slug/title/desc (with fallbacks if Claude
+    # skipped the YAML header).
     parsed = frontmatter.loads(raw)
     fm = parsed.metadata or {}
     title = str(fm.get("title") or topic).strip()
     slug = str(fm.get("slug") or slugify(title))
     description = str(fm.get("description") or "").strip()
+    if not description and parsed.content:
+        # First non-heading paragraph, clipped to a meta-description length.
+        for line in parsed.content.splitlines():
+            s = line.strip()
+            if not s or s.startswith("#") or s.startswith("!!!") or s.startswith("[[") or s.startswith(">"):
+                continue
+            description = s[:155].rstrip() + ("…" if len(s) > 155 else "")
+            break
 
     # 5. Tier-backlinks (external, tier-aware)
     body_md, backlinks = await resolve_placeholders(session, site, parsed.content)

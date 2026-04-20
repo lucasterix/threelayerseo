@@ -5,26 +5,41 @@
   <title>{{ post.title }} · {{ site.title }}</title>
   <meta name="description" content="{{ post.meta_description or post.title }}">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="author" content="{{ site.title }}">
+  {% if post.primary_keyword %}<meta name="keywords" content="{{ post.primary_keyword }}">{% endif %}
   <link rel="canonical" href="https://{{ request.url.hostname }}/{{ post.slug }}">
   <link rel="alternate" type="application/rss+xml" title="{{ site.title }}" href="/rss.xml">
+
   <meta property="og:type" content="article">
   <meta property="og:title" content="{{ post.title }}">
   <meta property="og:description" content="{{ post.meta_description or '' }}">
   <meta property="og:url" content="https://{{ request.url.hostname }}/{{ post.slug }}">
   <meta property="og:site_name" content="{{ site.title }}">
+  <meta property="og:locale" content="{{ 'de_DE' if site.language == 'de' else 'en_US' }}">
+  {% if post.published_at %}<meta property="article:published_time" content="{{ post.published_at.isoformat() }}">{% endif %}
+  {% if post.updated_at %}<meta property="article:modified_time" content="{{ post.updated_at.isoformat() }}">{% endif %}
+  <meta property="article:author" content="{{ site.title }}">
+  {% if site.domain.category %}<meta property="article:section" content="{{ site.domain.category.replace('-', ' ').title() }}">{% endif %}
+  {% if post.primary_keyword %}<meta property="article:tag" content="{{ post.primary_keyword }}">{% endif %}
   {% if post.featured_image_path %}
   <meta property="og:image" content="https://{{ request.url.hostname }}/media/{{ post.featured_image_path }}">
+  <meta property="og:image:width" content="1024">
+  <meta property="og:image:height" content="1024">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:image" content="https://{{ request.url.hostname }}/media/{{ post.featured_image_path }}">
   {% endif %}
   <meta name="twitter:title" content="{{ post.title }}">
   <meta name="twitter:description" content="{{ post.meta_description or '' }}">
+
   {% if post.schema_json %}
   <script type="application/ld+json">{{ post.schema_json | tojson }}</script>
   {% endif %}
+  {% if breadcrumb_schema %}
+  <script type="application/ld+json">{{ breadcrumb_schema | tojson }}</script>
+  {% endif %}
+
   <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
   <style>
-    /* ─── Backlinko-inspired article styling ────────────────────────── */
     .article-prose { font-size: 1.0625rem; line-height: 1.75; color: #1e293b; }
     .article-prose h2 {
       font-size: 1.875rem; font-weight: 700; margin-top: 2.5rem; margin-bottom: 1rem;
@@ -45,16 +60,11 @@
       border-left: 4px solid #cbd5e1; padding: .5rem 0 .5rem 1rem;
       color: #475569; margin: 1.5rem 0; font-style: italic;
     }
-    .article-prose table {
-      width: 100%; margin: 1.5rem 0; border-collapse: collapse;
-      font-size: .95rem;
-    }
+    .article-prose table { width: 100%; margin: 1.5rem 0; border-collapse: collapse; font-size: .95rem; }
     .article-prose table th, .article-prose table td {
       border: 1px solid #e2e8f0; padding: .6rem .8rem; text-align: left;
     }
     .article-prose table th { background: #f8fafc; font-weight: 600; }
-
-    /* Admonitions = key-takeaway + pull-quote boxes */
     .article-prose .admonition {
       border-radius: 8px; padding: 1rem 1.25rem; margin: 1.75rem 0;
       border-left: 4px solid #10b981; background: #ecfdf5;
@@ -65,13 +75,10 @@
     }
     .article-prose .admonition-title::before { content: "✓ "; }
     .article-prose .admonition p { margin: 0; }
-    .article-prose .admonition.quote {
-      border-color: #f59e0b; background: #fffbeb;
-    }
+    .article-prose .admonition.quote { border-color: #f59e0b; background: #fffbeb; }
     .article-prose .admonition.quote .admonition-title::before { content: "❝ "; }
     .article-prose .admonition.quote .admonition-title { color: #92400e; }
 
-    /* TL;DR styling — we decorate the first H2 if its text starts with Kernergebnisse */
     .tldr-box {
       background: #f1f5f9; border-radius: 8px; padding: 1.25rem 1.5rem;
       margin: 2rem 0; border: 1px solid #cbd5e1;
@@ -85,7 +92,6 @@
   </style>
 </head>
 <body class="bg-white text-slate-900 antialiased">
-
   <nav class="border-b">
     <div class="max-w-4xl mx-auto px-6 py-4 flex items-center gap-6">
       <a class="font-semibold" href="/">{{ site.title }}</a>
@@ -95,8 +101,7 @@
   <article>
     {% if post.featured_image_path %}
     <figure class="max-w-5xl mx-auto px-6 mt-8">
-      <img src="/media/{{ post.featured_image_path }}" alt="{{ post.title }}"
-           class="w-full rounded-xl">
+      <img src="/media/{{ post.featured_image_path }}" alt="{{ post.title }}" class="w-full rounded-xl">
     </figure>
     {% endif %}
 
@@ -106,9 +111,7 @@
         <span>Von <strong class="text-slate-700">{{ site.title }}</strong></span>
         {% if post.published_at %}
         <span class="dot">·</span>
-        <time datetime="{{ post.published_at.isoformat() }}">
-          {{ post.published_at.strftime('%d. %B %Y') }}
-        </time>
+        <time datetime="{{ post.published_at.isoformat() }}">{{ post.published_at.strftime('%d. %B %Y') }}</time>
         {% endif %}
         <span class="dot">·</span>
         <span>{{ ((post.body_markdown|length // 900) + 1) if post.body_markdown else 1 }} min Lesezeit</span>
@@ -121,9 +124,7 @@
     </header>
 
     <div class="max-w-3xl mx-auto px-6 py-8">
-      <div class="article-prose">
-        {{ post.body_html | safe }}
-      </div>
+      <div class="article-prose">{{ post.body_html | safe }}</div>
     </div>
   </article>
 
@@ -136,7 +137,6 @@
   </footer>
 
   <script>
-    // Promote the "Kernergebnisse" TL;DR section to the card-style box.
     document.querySelectorAll('.article-prose h2').forEach(h => {
       if (!/kernergebnisse|tl;dr|zusammenfassung/i.test(h.textContent)) return;
       const wrapper = document.createElement('div');
@@ -144,7 +144,6 @@
       const parent = h.parentNode;
       parent.insertBefore(wrapper, h);
       wrapper.appendChild(h);
-      // Pull following siblings up to the next H2 into the wrapper.
       while (wrapper.nextSibling && wrapper.nextSibling.tagName !== 'H2') {
         wrapper.appendChild(wrapper.nextSibling);
       }

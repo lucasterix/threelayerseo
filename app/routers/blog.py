@@ -160,6 +160,8 @@ async def privacy(request: Request, session: AsyncSession = Depends(get_session)
 
 @router.get("/", response_class=HTMLResponse)
 async def home(request: Request, session: AsyncSession = Depends(get_session)):
+    from app.services.schema import item_list_schema, website_schema
+
     host = _host(request)
     site = await _site_for_host(host, session)
     if site.status != SiteStatus.LIVE:
@@ -170,13 +172,24 @@ async def home(request: Request, session: AsyncSession = Depends(get_session)):
         .order_by(Post.published_at.desc().nullslast())
         .limit(20)
     )
-    posts = (await session.execute(posts_stmt)).scalars().all()
+    posts = list((await session.execute(posts_stmt)).scalars().all())
     template = f"blog/tier_{site.domain.tier.name.lower()}/index.html"
-    return templates.TemplateResponse(template, {"request": request, "site": site, "posts": posts})
+    return templates.TemplateResponse(
+        template,
+        {
+            "request": request,
+            "site": site,
+            "posts": posts,
+            "website_schema": website_schema(site, host),
+            "item_list_schema": item_list_schema(site, posts, host),
+        },
+    )
 
 
 @router.get("/{slug}", response_class=HTMLResponse)
 async def post_detail(slug: str, request: Request, session: AsyncSession = Depends(get_session)):
+    from app.services.schema import breadcrumb_schema
+
     host = _host(request)
     site = await _site_for_host(host, session)
     if site.status != SiteStatus.LIVE:
@@ -188,4 +201,12 @@ async def post_detail(slug: str, request: Request, session: AsyncSession = Depen
     if not post:
         raise HTTPException(status_code=404, detail="post not found")
     template = f"blog/tier_{site.domain.tier.name.lower()}/post.html"
-    return templates.TemplateResponse(template, {"request": request, "site": site, "post": post})
+    return templates.TemplateResponse(
+        template,
+        {
+            "request": request,
+            "site": site,
+            "post": post,
+            "breadcrumb_schema": breadcrumb_schema(site, post, host),
+        },
+    )

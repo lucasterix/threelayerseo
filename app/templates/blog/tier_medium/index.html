@@ -5,6 +5,19 @@
   <title>{{ site.title }}</title>
   <meta name="description" content="{{ site.topic }}">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="canonical" href="https://{{ request.url.hostname }}/">
+  <link rel="alternate" type="application/rss+xml" title="{{ site.title }}" href="/rss.xml">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="{{ site.title }}">
+  <meta property="og:description" content="{{ site.topic }}">
+  <meta property="og:url" content="https://{{ request.url.hostname }}/">
+  <meta property="og:site_name" content="{{ site.title }}">
+  {% if posts and posts[0].featured_image_path %}
+  <meta property="og:image" content="https://{{ request.url.hostname }}/media/{{ posts[0].featured_image_path }}">
+  <meta name="twitter:card" content="summary_large_image">
+  {% endif %}
+  {% if website_schema %}<script type="application/ld+json">{{ website_schema | tojson }}</script>{% endif %}
+  {% if item_list_schema %}<script type="application/ld+json">{{ item_list_schema | tojson }}</script>{% endif %}
   <style>
     body{font-family:Georgia,serif;max-width:820px;margin:0 auto;padding:2rem 1.2rem;color:#222;background:#fafafa;line-height:1.6}
     h1{font-size:2rem}h2{margin-top:1.6rem}h3{margin:0 0 .4rem 0}
@@ -13,16 +26,13 @@
     article img{width:100%;height:110px;object-fit:cover;border-radius:3px}
     article.no-img{grid-template-columns:1fr}
     a{color:#c0392b;text-decoration:none}a:hover{text-decoration:underline}
+    .pub{color:#999;font-size:.8rem}
     footer{margin-top:3rem;padding-top:1rem;border-top:1px solid #ddd;color:#888;font-size:.85rem}
   </style>
 </head>
 <body>
   <header>
-    {% if site.homepage_html %}
-      {{ site.homepage_html | safe }}
-    {% else %}
-      <h1>{{ site.title }}</h1><p>{{ site.topic }}</p>
-    {% endif %}
+    {% if site.homepage_html %}{{ site.homepage_html | safe }}{% else %}<h1>{{ site.title }}</h1><p>{{ site.topic }}</p>{% endif %}
   </header>
   <h2>Neueste Beiträge</h2>
   {% for p in posts %}
@@ -32,12 +42,15 @@
     {% endif %}
     <div>
       <h3><a href="/{{ p.slug }}">{{ p.title }}</a></h3>
-      <p>{{ p.body_markdown[:240] if p.body_markdown else '' }}…</p>
+      {% if p.published_at %}
+      <p class="pub"><time datetime="{{ p.published_at.isoformat() }}">{{ p.published_at.strftime('%d.%m.%Y') }}</time></p>
+      {% endif %}
+      <p>{{ p.meta_description or (p.body_markdown[:240] if p.body_markdown else '') }}…</p>
     </div>
   </article>
   {% endfor %}
   <footer>
-    <a href="/impressum">Impressum</a> · <a href="/datenschutz">Datenschutz</a>
+    <a href="/impressum">Impressum</a> · <a href="/datenschutz">Datenschutz</a> · <a href="/rss.xml">RSS</a>
   </footer>
 </body>
 </html>

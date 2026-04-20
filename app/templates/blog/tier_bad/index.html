@@ -3,7 +3,19 @@
 <head>
   <meta charset="utf-8">
   <title>{{ site.title }}</title>
+  <meta name="description" content="{{ site.topic }}">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="canonical" href="https://{{ request.url.hostname }}/">
+  <link rel="alternate" type="application/rss+xml" title="{{ site.title }}" href="/rss.xml">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="{{ site.title }}">
+  <meta property="og:description" content="{{ site.topic }}">
+  <meta property="og:url" content="https://{{ request.url.hostname }}/">
+  {% if posts and posts[0].featured_image_path %}
+  <meta property="og:image" content="https://{{ request.url.hostname }}/media/{{ posts[0].featured_image_path }}">
+  {% endif %}
+  {% if website_schema %}<script type="application/ld+json">{{ website_schema | tojson }}</script>{% endif %}
+  {% if item_list_schema %}<script type="application/ld+json">{{ item_list_schema | tojson }}</script>{% endif %}
   <style>
     body{font-family:Arial,sans-serif;max-width:720px;margin:2rem auto;padding:0 1rem;color:#333;line-height:1.55}
     a{color:#06c}h1{font-size:1.6rem;margin-bottom:.4rem}h2{font-size:1.2rem;margin-top:1.8rem}
@@ -11,28 +23,31 @@
     footer{margin-top:3rem;padding-top:1rem;border-top:1px solid #ccc;color:#888;font-size:.85rem}
     .post-list li{list-style:none;padding:.3rem 0;display:flex;gap:.8rem;align-items:flex-start}
     .post-list img{width:60px;height:60px;object-fit:cover;border-radius:2px;flex-shrink:0}
+    .pub{color:#999;font-size:.75rem}
   </style>
 </head>
 <body>
   {% if site.homepage_html %}
   <section class="hp">{{ site.homepage_html | safe }}</section>
   {% else %}
-  <h1>{{ site.title }}</h1>
-  <p>{{ site.topic }}</p>
+  <h1>{{ site.title }}</h1><p>{{ site.topic }}</p>
   {% endif %}
   <h2>Beiträge</h2>
   <ul class="post-list">
     {% for p in posts %}
     <li>
-      {% if p.featured_image_path %}
-      <img src="/media/{{ p.featured_image_path }}" alt="">
-      {% endif %}
-      <a href="/{{ p.slug }}">{{ p.title }}</a>
+      {% if p.featured_image_path %}<img src="/media/{{ p.featured_image_path }}" alt="">{% endif %}
+      <div>
+        <a href="/{{ p.slug }}">{{ p.title }}</a>
+        {% if p.published_at %}
+        <div class="pub"><time datetime="{{ p.published_at.isoformat() }}">{{ p.published_at.strftime('%d.%m.%Y') }}</time></div>
+        {% endif %}
+      </div>
     </li>
     {% endfor %}
   </ul>
   <footer>
-    <a href="/impressum">Impressum</a> · <a href="/datenschutz">Datenschutz</a>
+    <a href="/impressum">Impressum</a> · <a href="/datenschutz">Datenschutz</a> · <a href="/rss.xml">RSS</a>
   </footer>
 </body>
 </html>

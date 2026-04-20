@@ -5,7 +5,24 @@
   <title>{{ site.title }}</title>
   <meta name="description" content="{{ site.topic }}">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="canonical" href="https://{{ request.url.hostname }}/">
+  <link rel="alternate" type="application/rss+xml" title="{{ site.title }}" href="/rss.xml">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="{{ site.title }}">
+  <meta property="og:description" content="{{ site.topic }}">
+  <meta property="og:url" content="https://{{ request.url.hostname }}/">
+  <meta property="og:site_name" content="{{ site.title }}">
+  <meta property="og:locale" content="{{ 'de_DE' if site.language == 'de' else 'en_US' }}">
+  {% if posts and posts[0].featured_image_path %}
+  <meta property="og:image" content="https://{{ request.url.hostname }}/media/{{ posts[0].featured_image_path }}">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://{{ request.url.hostname }}/media/{{ posts[0].featured_image_path }}">
+  {% endif %}
+  <meta name="twitter:title" content="{{ site.title }}">
+  <meta name="twitter:description" content="{{ site.topic }}">
+  {% if website_schema %}<script type="application/ld+json">{{ website_schema | tojson }}</script>{% endif %}
+  {% if item_list_schema %}<script type="application/ld+json">{{ item_list_schema | tojson }}</script>{% endif %}
+  <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
 </head>
 <body class="bg-white text-slate-900 antialiased">
   <header class="max-w-4xl mx-auto px-6 py-10 border-b">
@@ -30,7 +47,12 @@
           <h3 class="text-lg font-semibold">
             <a class="hover:text-sky-700" href="/{{ p.slug }}">{{ p.title }}</a>
           </h3>
-          <p class="text-slate-600 mt-2 text-sm">{{ p.body_markdown[:200] if p.body_markdown else '' }}…</p>
+          {% if p.published_at %}
+          <p class="text-xs text-slate-400 mt-1">
+            <time datetime="{{ p.published_at.isoformat() }}">{{ p.published_at.strftime('%d.%m.%Y') }}</time>
+          </p>
+          {% endif %}
+          <p class="text-slate-600 mt-2 text-sm">{{ p.meta_description or (p.body_markdown[:200] if p.body_markdown else '') }}…</p>
         </div>
       </article>
       {% endfor %}
@@ -40,6 +62,8 @@
     <a class="hover:text-slate-900" href="/impressum">Impressum</a>
     ·
     <a class="hover:text-slate-900" href="/datenschutz">Datenschutz</a>
+    ·
+    <a class="hover:text-slate-900" href="/rss.xml">RSS</a>
   </footer>
 </body>
 </html>
