@@ -1,0 +1,34 @@
+{% extends "admin/base.html" %}
+{% block title %}Competitor-SERP · ThreeLayerSEO{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-semibold mb-2">Competitor-SERP-Analyse</h1>
+<p class="text-sm text-slate-500 mb-6">
+  Top-10 organische Ergebnisse für ein Keyword bei Google DE (via DataForSEO SERP API, ~$0,003 pro Call).
+</p>
+
+<form class="bg-white rounded-lg shadow p-5 space-y-4 mb-6"
+      hx-post="/keywords/serp" hx-target="#serp-results" hx-indicator="#serp-busy">
+  <label class="block">
+    <span class="text-sm font-medium">Keyword</span>
+    <input name="keyword" required
+           class="mt-1 w-full border rounded px-3 py-2"
+           placeholder="hundefutter test">
+  </label>
+  <label class="block text-sm">
+    <span class="text-slate-600">Location</span>
+    <select name="location_code" class="mt-1 border rounded px-2 py-1">
+      <option value="2276" selected>Germany</option>
+      <option value="2040">Austria</option>
+      <option value="2756">Switzerland</option>
+      <option value="2840">United States</option>
+      <option value="2826">United Kingdom</option>
+    </select>
+  </label>
+  <div class="flex items-center gap-3">
+    <button class="bg-slate-900 text-white px-4 py-2 rounded text-sm">Abfragen</button>
+    <span id="serp-busy" class="htmx-indicator text-sm text-slate-500">DataForSEO …</span>
+  </div>
+</form>
+
+<div id="serp-results"></div>
+{% endblock %}

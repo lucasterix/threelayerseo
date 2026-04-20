@@ -1,0 +1,44 @@
+{% extends "admin/base.html" %}
+{% from "admin/_partials.html" import sev_badge %}
+{% block title %}Calendar · ThreeLayerSEO{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-semibold mb-2">Content Calendar</h1>
+<p class="text-sm text-slate-500 mb-6">
+  7 Tage rückwärts, 28 Tage vorwärts. Scheduled posts erscheinen am ihrem
+  <code>scheduled_at</code>; publizierte Posts am <code>published_at</code>.
+</p>
+
+{% if days %}
+<div class="space-y-4">
+  {% for day, posts in days|dictsort %}
+  <section class="bg-white rounded-lg shadow overflow-hidden">
+    <div class="bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 flex items-center justify-between">
+      <span>{{ day }}</span>
+      <span class="text-xs text-slate-500">{{ posts|length }} post{{ 's' if posts|length != 1 }}</span>
+    </div>
+    <ul class="divide-y">
+      {% for p in posts %}
+      <li class="px-4 py-2 flex items-center gap-3 text-sm">
+        <span class="text-xs text-slate-400 w-14 font-mono">
+          {{ (p.scheduled_at or p.published_at).strftime('%H:%M') }}
+        </span>
+        <span class="font-mono text-xs text-slate-500 w-48 truncate">{{ p.site.domain.name }}</span>
+        <a href="/posts/{{ p.id }}" class="text-sky-700 hover:underline flex-1 truncate">{{ p.title }}</a>
+        {{ sev_badge(
+          'green' if p.status.value == 'published' else
+          ('yellow' if p.status.value == 'ready' else
+           ('red' if p.status.value == 'failed' else 'gray')),
+          p.status.value
+        ) }}
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endfor %}
+</div>
+{% else %}
+<div class="bg-white rounded-lg shadow p-8 text-center text-slate-500">
+  Nichts geplant in den nächsten 4 Wochen und nichts publiziert in den letzten 7 Tagen.
+</div>
+{% endif %}
+{% endblock %}

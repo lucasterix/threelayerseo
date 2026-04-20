@@ -1,0 +1,52 @@
+{% extends "admin/base.html" %}
+{% from "admin/_partials.html" import category_select %}
+{% block title %}Keyword-Cluster · ThreeLayerSEO{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-semibold mb-2">Topical Clustering</h1>
+<p class="text-sm text-slate-500 mb-6 max-w-3xl">
+  Keyword-Liste einfügen, Claude Haiku gruppiert sie in thematische Silos
+  (inkl. Search-Intent-Klassifikation). Gespeicherte Cluster stehen später
+  im „Launch Site"-Flow als Content-Quelle zur Verfügung.
+</p>
+
+<form method="post" action="/keywords/cluster" class="bg-white rounded-lg shadow p-5 space-y-4 mb-6">
+  <label class="block">
+    <span class="text-sm font-medium">Keywords (einer pro Zeile, max 300)</span>
+    <textarea name="keywords_raw" rows="10" required
+              class="mt-1 w-full border rounded px-3 py-2 font-mono text-sm"
+              placeholder="hundefutter test&#10;hundefutter trocken&#10;beste hundenahrung&#10;..."></textarea>
+  </label>
+  <label class="block">
+    <span class="text-sm font-medium">Fokus-Kategorie (optional)</span>
+    {{ category_select('focus_category', 'healthcare', categories, allow_empty=True) }}
+  </label>
+  <button class="bg-slate-900 text-white px-4 py-2 rounded text-sm hover:bg-slate-800">
+    Clustern
+  </button>
+</form>
+
+{% if existing %}
+<section class="bg-white rounded-lg shadow overflow-hidden">
+  <div class="px-4 py-3 border-b text-sm font-medium">Gespeicherte Cluster ({{ existing|length }})</div>
+  <ul class="divide-y">
+    {% for c in existing %}
+    <li class="px-4 py-3 text-sm">
+      <div class="flex items-center gap-3">
+        <span class="font-medium">{{ c.name }}</span>
+        {% if c.intent %}
+        <span class="text-xs px-2 py-0.5 rounded bg-slate-100 text-slate-700">{{ c.intent }}</span>
+        {% endif %}
+        {% if c.category %}
+        <span class="text-xs text-slate-500">· {{ c.category }}</span>
+        {% endif %}
+        <span class="text-xs text-slate-400 ml-auto">{{ c.created_at.strftime('%Y-%m-%d') }}</span>
+      </div>
+      <div class="text-xs text-slate-500 mt-1 font-mono">
+        {{ (c.keywords | join(' · '))[:400] }}{% if (c.keywords | join(' ')) | length > 400 %}…{% endif %}
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+{% endblock %}

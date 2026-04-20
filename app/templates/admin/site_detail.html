@@ -133,6 +133,85 @@
 
 </div>
 
+{# ─── One-click Launch ──────────────────────────────────────────────── #}
+<section class="mt-2 mb-6 bg-gradient-to-br from-emerald-50 to-sky-50 rounded-lg shadow p-6 border border-emerald-200">
+  <div class="flex items-start justify-between mb-3">
+    <div>
+      <h2 class="font-semibold text-lg">🚀 Launch Site — Ein-Klick-Komplettaufbau</h2>
+      <p class="text-sm text-slate-600 mt-1 max-w-2xl">
+        Homepage + Impressum + Datenschutz + N Keyword-basierte Posts mit Drip-Feed,
+        Stylometric-Variation, Competitor-SERP-Kontext, Schema.org-Markup,
+        Internal-Linking + Featured Images — alles asynchron im Worker.
+      </p>
+    </div>
+  </div>
+  <form method="post" action="/sites/{{ site.id }}/launch" class="space-y-3">
+    <label class="block text-sm">
+      <span class="text-slate-600">Keywords (einer pro Zeile, max 40) — werden zu N Posts</span>
+      <textarea name="keywords_raw" rows="5" required
+                class="mt-1 w-full border rounded px-3 py-2 font-mono text-xs"
+                placeholder="hundefutter test&#10;beste hundenahrung&#10;hundefutter trocken..."></textarea>
+    </label>
+    <div class="flex items-end gap-4 flex-wrap">
+      <label class="block text-sm">
+        <span class="text-slate-600">Drip-Feed-Intervall (Stunden)</span>
+        <input type="number" name="interval_hours" value="24" min="1" max="720"
+               class="mt-1 border rounded px-2 py-1 w-32">
+      </label>
+      <label class="inline-flex items-center gap-2 text-sm mb-1">
+        <input type="checkbox" name="auto_publish" value="true" checked>
+        Auto-publish wenn scheduled_at kommt
+      </label>
+      <button class="ml-auto bg-emerald-600 text-white px-5 py-2 rounded text-sm font-medium hover:bg-emerald-700">
+        🚀 Site jetzt launchen
+      </button>
+    </div>
+  </form>
+</section>
+
+{# ─── GSC Metrics ────────────────────────────────────────────────────── #}
+{% if gsc_perf %}
+<section class="mt-2 mb-6 bg-white rounded-lg shadow p-5">
+  <h2 class="font-semibold mb-3">Search Console — {{ gsc_perf.date_range }}</h2>
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
+    <div>
+      <div class="text-xs uppercase tracking-wide text-slate-500">Clicks</div>
+      <div class="text-2xl font-semibold">{{ gsc_perf.clicks }}</div>
+    </div>
+    <div>
+      <div class="text-xs uppercase tracking-wide text-slate-500">Impressions</div>
+      <div class="text-2xl font-semibold">{{ gsc_perf.impressions }}</div>
+    </div>
+    <div>
+      <div class="text-xs uppercase tracking-wide text-slate-500">CTR</div>
+      <div class="text-2xl font-semibold">{{ '%.2f %%' | format((gsc_perf.ctr or 0) * 100) }}</div>
+    </div>
+    <div>
+      <div class="text-xs uppercase tracking-wide text-slate-500">⌀ Position</div>
+      <div class="text-2xl font-semibold">{{ '%.1f' | format(gsc_perf.avg_position or 0) }}</div>
+    </div>
+  </div>
+  {% if gsc_top %}
+  <h3 class="text-sm font-medium mb-2">Top-Suchanfragen</h3>
+  <table class="w-full text-sm">
+    <thead class="text-slate-500 text-xs uppercase tracking-wide">
+      <tr><th class="text-left py-1">Query</th><th class="text-right py-1">Clicks</th><th class="text-right py-1">Impr.</th><th class="text-right py-1">Pos.</th></tr>
+    </thead>
+    <tbody>
+      {% for row in gsc_top %}
+      <tr class="border-t">
+        <td class="py-1 font-mono text-xs">{{ row.keys | join(' ') }}</td>
+        <td class="py-1 text-right">{{ row.clicks }}</td>
+        <td class="py-1 text-right">{{ row.impressions }}</td>
+        <td class="py-1 text-right">{{ '%.1f' | format(row.position or 0) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</section>
+{% endif %}
+
 {% set imprint_md = (site.meta or {}).get('imprint_markdown', '') %}
 {% set privacy_md = (site.meta or {}).get('privacy_markdown', '') %}
 <section id="legal" class="mt-6 bg-white rounded-lg shadow p-5">

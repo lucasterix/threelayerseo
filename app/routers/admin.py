@@ -29,6 +29,8 @@ from app.models import (
 )
 from app.queue import content_q, domains_q, publish_q, redis_conn
 from app.categories import all_categories, FEATURED_KEYS
+from app.models import Expense, KeywordCluster
+from app.services import budget
 from app.services.domains import (
     DEFAULT_TLDS,
     PurchaseItem,
@@ -458,6 +460,19 @@ async def site_detail(
         await session.execute(select(Server).where(Server.status == ServerStatus.ACTIVE))
     ).scalars().all())
 
+    # GSC metrics (best-effort, never blocks rendering)
+    gsc_perf = None
+    gsc_top = []
+    try:
+        from app.services.gsc_metrics import query_performance, top_queries
+
+        gsc_perf = query_performance(f"sc-domain:{site.domain.name}", days=28)
+        if gsc_perf is None:
+            gsc_perf = query_performance(f"https://{site.domain.name}/", days=28)
+        gsc_top = top_queries(f"sc-domain:{site.domain.name}", days=28, limit=10)
+    except Exception:  # noqa: BLE001
+        log.debug("gsc metrics fetch skipped", exc_info=True)
+
     return templates.TemplateResponse(
         "admin/site_detail.html",
         {
@@ -467,6 +482,8 @@ async def site_detail(
             "health": health,
             "servers": servers,
             "site_status_enum": SiteStatus,
+            "gsc_perf": gsc_perf,
+            "gsc_top": gsc_top,
         },
     )
 
@@ -574,6 +591,36 @@ async def site_cloudflare_onboard(
         zone.get("id"),
         zone.get("status"),
         ns_switched,
+    )
+    return RedirectResponse(url=f"/sites/{site_id}", status_code=303)
+
+
+@router.post("/sites/{site_id}/launch")
+async def site_launch(
+    site_id: int,
+    keywords_raw: str = Form(""),
+    interval_hours: int = Form(24),
+    auto_publish: bool = Form(True),
+    _: str = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    """One-click: homepage + legal + N posts drip-fed + images + schema."""
+    site = await session.get(Site, site_id)
+    if not site:
+        raise HTTPException(status_code=404)
+    keywords = [k.strip() for k in keywords_raw.splitlines() if k.strip()]
+    if not keywords:
+        raise HTTPException(status_code=400, detail="Mindestens ein Keyword angeben")
+    if len(keywords) > 40:
+        raise HTTPException(status_code=400, detail="Maximal 40 Keywords pro Launch")
+    content_q.enqueue(
+        "app.jobs.content.launch_site_job",
+        site_id,
+        keywords,
+        None,
+        interval_hours,
+        bool(auto_publish),
+        job_timeout=1800,
     )
     return RedirectResponse(url=f"/sites/{site_id}", status_code=303)
 
@@ -936,6 +983,156 @@ async def keywords_search(
         "admin/keywords_results.html",
         {"request": request, "results": results, "mode": mode},
     )
+
+
+# ─── Calendar ──────────────────────────────────────────────────────────────
+
+@router.get("/calendar", response_class=HTMLResponse)
+async def calendar(
+    request: Request,
+    _: str = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    """Week-centric publishing calendar: upcoming scheduled posts +
+    recently published. Lets the operator see at a glance when the
+    drip-feed of a fresh site lands.
+    """
+    now = datetime.now(timezone.utc)
+    start = now - timedelta(days=7)
+    end = now + timedelta(days=28)
+    stmt = (
+        select(Post)
+        .options(joinedload(Post.site).joinedload(Site.domain))
+        .where(
+            (Post.scheduled_at.between(start, end))
+            | (Post.published_at.between(start, end))
+        )
+        .order_by(Post.scheduled_at.nulls_last(), Post.published_at.nulls_last())
+    )
+    posts = list((await session.execute(stmt)).scalars().all())
+    days: dict[str, list[Post]] = {}
+    for p in posts:
+        when = p.scheduled_at or p.published_at
+        if not when:
+            continue
+        key = when.strftime("%Y-%m-%d")
+        days.setdefault(key, []).append(p)
+    return templates.TemplateResponse(
+        "admin/calendar.html",
+        {"request": request, "days": days, "now": now},
+    )
+
+
+# ─── Budget ────────────────────────────────────────────────────────────────
+
+@router.get("/budget", response_class=HTMLResponse)
+async def budget_view(
+    request: Request,
+    _: str = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    six = await budget.last_6_months(session)
+    recent = await budget.recent_expenses(session, limit=80)
+    return templates.TemplateResponse(
+        "admin/budget.html",
+        {"request": request, "six_months": six, "recent": recent},
+    )
+
+
+# ─── Keyword cluster view ──────────────────────────────────────────────────
+
+@router.get("/keywords/cluster", response_class=HTMLResponse)
+async def cluster_form(
+    request: Request,
+    _: str = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    existing = list(
+        (
+            await session.execute(
+                select(KeywordCluster).order_by(KeywordCluster.created_at.desc()).limit(40)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return templates.TemplateResponse(
+        "admin/cluster.html",
+        {"request": request, "existing": existing, "categories": all_categories()},
+    )
+
+
+@router.post("/keywords/cluster")
+async def cluster_submit(
+    request: Request,
+    keywords_raw: str = Form(""),
+    focus_category: str = Form(""),
+    _: str = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    keywords = list({k.strip().lower() for k in keywords_raw.splitlines() if k.strip()})
+    if not keywords:
+        raise HTTPException(status_code=400, detail="Leere Keyword-Liste")
+    from app.services.clustering import cluster_keywords
+
+    try:
+        clusters = cluster_keywords(keywords, focus_category=focus_category or None)
+    except Exception as e:  # noqa: BLE001
+        log.exception("clustering failed")
+        raise HTTPException(status_code=502, detail=str(e))
+    for c in clusters:
+        row = KeywordCluster(
+            name=c.get("name") or "Unbenannt",
+            category=focus_category or None,
+            keywords=c.get("keywords") or [],
+            intent=c.get("intent"),
+        )
+        session.add(row)
+    await session.commit()
+    await budget.track("anthropic", "clustering", note=f"{len(keywords)} keywords -> {len(clusters)}")
+    return RedirectResponse(url="/keywords/cluster", status_code=303)
+
+
+# ─── Competitor SERP ───────────────────────────────────────────────────────
+
+@router.get("/keywords/serp", response_class=HTMLResponse)
+async def serp_form(
+    request: Request,
+    _: str = Depends(require_admin),
+):
+    return templates.TemplateResponse("admin/serp.html", {"request": request})
+
+
+@router.post("/keywords/serp", response_class=HTMLResponse)
+async def serp_analyse(
+    request: Request,
+    keyword: str = Form(...),
+    location_code: int = Form(2276),
+    _: str = Depends(require_admin),
+):
+    from app.services.competitor import top_results
+
+    try:
+        results = top_results(keyword, location_code=location_code)
+    except Exception as e:  # noqa: BLE001
+        return HTMLResponse(f'<div class="p-3 text-red-700">{e}</div>', status_code=502)
+    await budget.track("dataforseo", "serp", note=keyword)
+    return templates.TemplateResponse(
+        "admin/serp_results.html",
+        {"request": request, "results": results, "keyword": keyword},
+    )
+
+
+# ─── Content refresh (self-rescheduling cron) ──────────────────────────────
+
+@router.post("/refresh/start")
+async def refresh_start(
+    _: str = Depends(require_admin),
+):
+    """Kick off the refresh-scheduler chain. Safe to call multiple times
+    (worst case a few duplicate runs — they're idempotent)."""
+    content_q.enqueue("app.jobs.content.refresh_stale_job", 20, job_timeout=3600)
+    return RedirectResponse(url="/", status_code=303)
 
 
 # ─── Integrations ──────────────────────────────────────────────────────────

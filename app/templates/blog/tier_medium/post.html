@@ -3,7 +3,21 @@
 <head>
   <meta charset="utf-8">
   <title>{{ post.title }} · {{ site.title }}</title>
+  <meta name="description" content="{{ post.meta_description or post.title }}">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="canonical" href="https://{{ request.url.hostname }}/{{ post.slug }}">
+  <link rel="alternate" type="application/rss+xml" title="{{ site.title }}" href="/rss.xml">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="{{ post.title }}">
+  <meta property="og:description" content="{{ post.meta_description or '' }}">
+  <meta property="og:url" content="https://{{ request.url.hostname }}/{{ post.slug }}">
+  {% if post.featured_image_path %}
+  <meta property="og:image" content="https://{{ request.url.hostname }}/media/{{ post.featured_image_path }}">
+  <meta name="twitter:card" content="summary_large_image">
+  {% endif %}
+  {% if post.schema_json %}
+  <script type="application/ld+json">{{ post.schema_json | tojson }}</script>
+  {% endif %}
   <style>
     body{font-family:Georgia,serif;max-width:760px;margin:0 auto;padding:2rem 1.2rem;color:#222;background:#fafafa;line-height:1.6}
     a{color:#c0392b}h1{margin-bottom:.6rem}
@@ -19,7 +33,7 @@
   {% endif %}
   <article>{{ post.body_html | safe }}</article>
   <footer>
-    <a href="/impressum">Impressum</a> · <a href="/datenschutz">Datenschutz</a>
+    <a href="/impressum">Impressum</a> · <a href="/datenschutz">Datenschutz</a> · <a href="/rss.xml">RSS</a>
   </footer>
 </body>
 </html>

@@ -26,6 +26,11 @@ POST_CREATE_MIGRATIONS = [
     "CREATE INDEX IF NOT EXISTS ix_domains_is_expired_purchase ON domains(is_expired_purchase)",
     "ALTER TABLE posts ADD COLUMN IF NOT EXISTS featured_image_path VARCHAR(500)",
     "ALTER TABLE posts ADD COLUMN IF NOT EXISTS featured_image_prompt TEXT",
+    "ALTER TABLE posts ADD COLUMN IF NOT EXISTS meta_description VARCHAR(500)",
+    "ALTER TABLE posts ADD COLUMN IF NOT EXISTS schema_json JSON",
+    "ALTER TABLE posts ADD COLUMN IF NOT EXISTS stylometric_profile VARCHAR(64)",
+    "ALTER TABLE posts ADD COLUMN IF NOT EXISTS refresh_due_at TIMESTAMPTZ",
+    "CREATE INDEX IF NOT EXISTS ix_posts_refresh_due_at ON posts(refresh_due_at)",
 ]
 
 

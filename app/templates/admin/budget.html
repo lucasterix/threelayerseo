@@ -1,0 +1,67 @@
+{% extends "admin/base.html" %}
+{% block title %}Budget · ThreeLayerSEO{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-semibold mb-2">Budget</h1>
+<p class="text-sm text-slate-500 mb-6">
+  Interne Schätzung: jede Pipeline-Stufe schreibt eine Zeile. Annahmen beim Unit-Cost in
+  <code>app/services/budget.py</code> sind grob — zum Planen gut, nicht zum Buchen.
+</p>
+
+<section class="bg-white rounded-lg shadow p-5 mb-6">
+  <h2 class="font-semibold mb-3">Letzte 6 Monate</h2>
+  <table class="w-full text-sm">
+    <thead class="text-slate-500 text-xs uppercase tracking-wide">
+      <tr>
+        <th class="text-left py-1">Monat</th>
+        <th class="text-right py-1">openai</th>
+        <th class="text-right py-1">anthropic</th>
+        <th class="text-right py-1">dataforseo</th>
+        <th class="text-right py-1">inwx</th>
+        <th class="text-right py-1">hetzner</th>
+        <th class="text-right py-1">gesamt</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for m in six_months %}
+      <tr class="border-t">
+        <td class="py-1.5">{{ '%04d-%02d' | format(m.year, m.month) }}</td>
+        <td class="py-1.5 text-right">{{ '%.2f €' | format((m.by_category.get('openai', 0))/100) }}</td>
+        <td class="py-1.5 text-right">{{ '%.2f €' | format((m.by_category.get('anthropic', 0))/100) }}</td>
+        <td class="py-1.5 text-right">{{ '%.2f €' | format((m.by_category.get('dataforseo', 0))/100) }}</td>
+        <td class="py-1.5 text-right">{{ '%.2f €' | format((m.by_category.get('inwx', 0))/100) }}</td>
+        <td class="py-1.5 text-right">{{ '%.2f €' | format((m.by_category.get('hetzner', 0))/100) }}</td>
+        <td class="py-1.5 text-right font-semibold">{{ '%.2f €' | format(m.total_cents/100) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="bg-white rounded-lg shadow overflow-hidden">
+  <div class="px-4 py-3 border-b text-sm font-medium">Letzte 80 Events</div>
+  <table class="w-full text-sm">
+    <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
+      <tr>
+        <th class="text-left px-4 py-2">Zeit</th>
+        <th class="text-left px-4 py-2">Kategorie</th>
+        <th class="text-left px-4 py-2">Kind</th>
+        <th class="text-right px-4 py-2">Betrag</th>
+        <th class="text-left px-4 py-2">Notiz</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for e in recent %}
+      <tr class="border-t">
+        <td class="px-4 py-1.5 text-xs text-slate-500 font-mono">{{ e.created_at.strftime('%m-%d %H:%M') }}</td>
+        <td class="px-4 py-1.5 font-mono text-xs">{{ e.category }}</td>
+        <td class="px-4 py-1.5 font-mono text-xs text-slate-600">{{ e.kind }}</td>
+        <td class="px-4 py-1.5 text-right">{{ '%.2f %s' | format(e.amount_cents/100, e.currency) }}</td>
+        <td class="px-4 py-1.5 text-xs text-slate-500">{{ e.note or '' }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="px-4 py-6 text-center text-slate-500">Noch keine Ausgaben erfasst.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

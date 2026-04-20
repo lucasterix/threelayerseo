@@ -1,0 +1,21 @@
+<div class="bg-white rounded-lg shadow overflow-hidden">
+  <div class="px-4 py-3 border-b text-sm">
+    Top {{ results|length }} für <span class="font-mono">{{ keyword }}</span>
+  </div>
+  <ol class="divide-y">
+    {% for r in results %}
+    <li class="px-4 py-3 text-sm">
+      <div class="flex items-center gap-3">
+        <span class="w-8 text-slate-400 text-xs">#{{ r.position }}</span>
+        <span class="font-mono text-xs text-slate-500 w-48 truncate">{{ r.domain }}</span>
+        <a href="{{ r.url }}" target="_blank" class="text-sky-700 hover:underline flex-1 truncate">{{ r.title }}</a>
+      </div>
+      {% if r.description %}
+      <p class="text-xs text-slate-500 mt-1 ml-11">{{ r.description[:240] }}</p>
+      {% endif %}
+    </li>
+    {% else %}
+    <li class="px-4 py-8 text-center text-slate-500 text-sm">Keine Ergebnisse (Account nicht verifiziert oder keine SERP-Rechte).</li>
+    {% endfor %}
+  </ol>
+</div>

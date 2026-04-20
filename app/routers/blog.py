@@ -97,6 +97,25 @@ async def sitemap(request: Request, session: AsyncSession = Depends(get_session)
     return Response(content=body, media_type="application/xml")
 
 
+@router.get("/rss.xml", include_in_schema=False)
+async def rss(request: Request, session: AsyncSession = Depends(get_session)):
+    from app.services.rss import render
+
+    host = _host(request)
+    site = await _site_for_host(host, session)
+    stmt = (
+        select(Post)
+        .where(Post.site_id == site.id, Post.status == PostStatus.PUBLISHED)
+        .order_by(Post.published_at.desc().nullslast())
+        .limit(30)
+    )
+    posts = list((await session.execute(stmt)).scalars().all())
+    return Response(
+        content=render(site, posts, host),
+        media_type="application/rss+xml",
+    )
+
+
 @router.get("/{key}.txt", response_class=PlainTextResponse, include_in_schema=False)
 async def indexnow_key_file(key: str):
     """Serve <INDEXNOW_KEY>.txt at every domain root so IndexNow can verify

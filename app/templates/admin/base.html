@@ -16,9 +16,13 @@
       <a href="/domains/search" class="text-slate-300 hover:text-white">Kaufen</a>
       <a href="/expired" class="text-slate-300 hover:text-white">Expired</a>
       <a href="/sites" class="text-slate-300 hover:text-white">Sites</a>
+      <a href="/calendar" class="text-slate-300 hover:text-white">Calendar</a>
       <a href="/servers" class="text-slate-300 hover:text-white">Server</a>
       <a href="/footprint" class="text-slate-300 hover:text-white">Footprint</a>
       <a href="/keywords" class="text-slate-300 hover:text-white">Keywords</a>
+      <a href="/keywords/cluster" class="text-slate-300 hover:text-white">Cluster</a>
+      <a href="/keywords/serp" class="text-slate-300 hover:text-white">SERP</a>
+      <a href="/budget" class="text-slate-300 hover:text-white">Budget</a>
       <a href="/integrations" class="text-slate-300 hover:text-white">Integrations</a>
       <span class="ml-auto text-sm text-slate-400">{% block header_right %}{% endblock %}</span>
     </div>
@@ -26,7 +30,6 @@
   <main class="max-w-7xl mx-auto px-4 py-8">
     {% block content %}{% endblock %}
   </main>
-  {# Force Tailwind CDN JIT to include every category's color palette #}
   <span class="hidden bg-emerald-100 text-emerald-800 border-emerald-300 bg-teal-100 text-teal-800 border-teal-300 bg-cyan-100 text-cyan-800 border-cyan-300 bg-sky-100 text-sky-800 border-sky-300 bg-lime-100 text-lime-800 border-lime-300 bg-amber-100 text-amber-800 border-amber-300 bg-violet-100 text-violet-800 border-violet-300 bg-indigo-100 text-indigo-800 border-indigo-300 bg-slate-100 text-slate-800 border-slate-300 bg-blue-100 text-blue-800 border-blue-300 bg-rose-100 text-rose-800 border-rose-300 bg-pink-100 text-pink-800 border-pink-300 bg-gray-100 text-gray-800 border-gray-300"></span>
 </body>
 </html>

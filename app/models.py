@@ -166,8 +166,12 @@ class Post(Base):
     research_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     body_markdown: Mapped[str | None] = mapped_column(Text, nullable=True)
     body_html: Mapped[str | None] = mapped_column(Text, nullable=True)
+    meta_description: Mapped[str | None] = mapped_column(String(500), nullable=True)
     featured_image_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
     featured_image_prompt: Mapped[str | None] = mapped_column(Text, nullable=True)
+    schema_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    stylometric_profile: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    refresh_due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
     status: Mapped[PostStatus] = mapped_column(
         Enum(PostStatus, native_enum=False, length=16), default=PostStatus.PENDING
     )
@@ -216,6 +220,51 @@ class Backlink(Base):
     source_post: Mapped[Post] = relationship(
         foreign_keys=[source_post_id], back_populates="outgoing_links"
     )
+
+
+class Expense(Base):
+    """Running tally of operational spend for the budget dashboard.
+
+    Each row is a single API call or periodic cost (domain renewal, server
+    lease). `category` is coarse (openai / anthropic / dataforseo / inwx /
+    hetzner / cloudflare) so the dashboard can aggregate by month.
+    """
+
+    __tablename__ = "expenses"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    category: Mapped[str] = mapped_column(String(32), index=True)
+    kind: Mapped[str] = mapped_column(String(64))         # e.g. "research", "writer", "image", "domain.create"
+    amount_cents: Mapped[int] = mapped_column(Integer)
+    currency: Mapped[str] = mapped_column(String(3), default="EUR")
+    site_id: Mapped[int | None] = mapped_column(
+        ForeignKey("sites.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    post_id: Mapped[int | None] = mapped_column(
+        ForeignKey("posts.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    note: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), index=True
+    )
+
+
+class KeywordCluster(Base):
+    """Topical grouping of keywords for content planning.
+
+    Produced either manually from the admin or by Claude when a user
+    pastes a big keyword list on /keywords/cluster.
+    """
+
+    __tablename__ = "keyword_clusters"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(255))
+    category: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
+    keywords: Mapped[list[str]] = mapped_column(JSON, default=list)
+    intent: Mapped[str | None] = mapped_column(String(32), nullable=True)   # info / commercial / transactional / nav
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class MoneySite(Base):
