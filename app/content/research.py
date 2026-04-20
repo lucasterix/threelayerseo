@@ -14,8 +14,8 @@ from app.config import settings
 
 log = logging.getLogger(__name__)
 
-# Deep research model. OpenAI exposes it via the Responses API.
-DEEP_RESEARCH_MODEL = "o3-deep-research-2025-06-26"
+# Deep research model (light variant — faster, cheaper than o3-deep-research).
+DEEP_RESEARCH_MODEL = "o4-mini-deep-research-2025-06-26"
 
 SYSTEM_PROMPT = """You are a research assistant building a brief for a blog post.
 Return a JSON object with keys:
