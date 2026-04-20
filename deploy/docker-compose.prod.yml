@@ -24,6 +24,15 @@ services:
       - redis_data:/data
     networks: [internal]
 
+  quickchart:
+    # Open-source Chart.js renderer (same stack Liquidhub uses), exposed
+    # only inside the internal network so the worker can POST configs
+    # to /chart and get PNGs back.
+    image: ianw/quickchart:latest
+    container_name: threelayerseo-quickchart
+    restart: unless-stopped
+    networks: [internal]
+
   admin:
     image: ${APP_IMAGE}
     container_name: threelayerseo-admin

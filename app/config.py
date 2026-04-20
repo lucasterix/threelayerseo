@@ -83,6 +83,10 @@ class Settings(BaseSettings):
     # Where the worker writes PNGs; renderer serves from the same volume.
     images_dir: str = "/srv/app/images"
 
+    # QuickChart (Chart.js server renderer). Our compose runs a container
+    # on the internal network — override with cloud URL for dev.
+    quickchart_url: str = "http://quickchart:3400/chart"
+
 
 @lru_cache
 def get_settings() -> Settings:

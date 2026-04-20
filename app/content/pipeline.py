@@ -106,8 +106,26 @@ async def generate_post(
     except Exception:  # noqa: BLE001
         log.warning("internal link suggestion failed", exc_info=True)
 
-    # 7. Markdown -> HTML
-    body_html = md_lib.markdown(body_md, extensions=["extra", "toc", "sane_lists"])
+    # 7. Resolve [[CHART:...]] placeholders into rendered PNGs.
+    from app.content.charts_inject import inject as inject_charts
+
+    try:
+        body_md = await inject_charts(
+            body_md,
+            post_slug=slug,
+            post_id=existing_post.id if existing_post else 0,
+            site_id=site.id,
+        )
+    except Exception:  # noqa: BLE001
+        log.warning("chart injection failed", exc_info=True)
+
+    # 8. Markdown -> HTML (admonition enables !!! note / !!! quote callouts
+    # which the tier-good template styles as key-takeaway and pull-quote
+    # boxes. attr_list lets the writer attach CSS classes to headings.)
+    body_html = md_lib.markdown(
+        body_md,
+        extensions=["extra", "toc", "sane_lists", "admonition", "tables", "attr_list"],
+    )
 
     return GeneratedPost(
         title=title,

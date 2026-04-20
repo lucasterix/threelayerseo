@@ -22,28 +22,133 @@
   {% if post.schema_json %}
   <script type="application/ld+json">{{ post.schema_json | tojson }}</script>
   {% endif %}
-  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+  <style>
+    /* ─── Backlinko-inspired article styling ────────────────────────── */
+    .article-prose { font-size: 1.0625rem; line-height: 1.75; color: #1e293b; }
+    .article-prose h2 {
+      font-size: 1.875rem; font-weight: 700; margin-top: 2.5rem; margin-bottom: 1rem;
+      line-height: 1.25; padding-left: 1rem; border-left: 4px solid #0284c7;
+      color: #0f172a;
+    }
+    .article-prose h3 {
+      font-size: 1.375rem; font-weight: 700; margin-top: 2rem; margin-bottom: .5rem;
+      color: #0f172a;
+    }
+    .article-prose p { margin: 1rem 0; }
+    .article-prose ul, .article-prose ol { margin: 1rem 0 1rem 1.5rem; }
+    .article-prose li { margin: .4rem 0; }
+    .article-prose a { color: #0284c7; text-decoration: underline; text-underline-offset: 3px; }
+    .article-prose a:hover { color: #0369a1; }
+    .article-prose img { border-radius: 8px; margin: 1.5rem 0; border: 1px solid #e2e8f0; }
+    .article-prose blockquote {
+      border-left: 4px solid #cbd5e1; padding: .5rem 0 .5rem 1rem;
+      color: #475569; margin: 1.5rem 0; font-style: italic;
+    }
+    .article-prose table {
+      width: 100%; margin: 1.5rem 0; border-collapse: collapse;
+      font-size: .95rem;
+    }
+    .article-prose table th, .article-prose table td {
+      border: 1px solid #e2e8f0; padding: .6rem .8rem; text-align: left;
+    }
+    .article-prose table th { background: #f8fafc; font-weight: 600; }
+
+    /* Admonitions = key-takeaway + pull-quote boxes */
+    .article-prose .admonition {
+      border-radius: 8px; padding: 1rem 1.25rem; margin: 1.75rem 0;
+      border-left: 4px solid #10b981; background: #ecfdf5;
+    }
+    .article-prose .admonition-title {
+      font-weight: 700; color: #065f46; margin: 0 0 .5rem 0;
+      font-size: .95rem; text-transform: uppercase; letter-spacing: .04em;
+    }
+    .article-prose .admonition-title::before { content: "✓ "; }
+    .article-prose .admonition p { margin: 0; }
+    .article-prose .admonition.quote {
+      border-color: #f59e0b; background: #fffbeb;
+    }
+    .article-prose .admonition.quote .admonition-title::before { content: "❝ "; }
+    .article-prose .admonition.quote .admonition-title { color: #92400e; }
+
+    /* TL;DR styling — we decorate the first H2 if its text starts with Kernergebnisse */
+    .tldr-box {
+      background: #f1f5f9; border-radius: 8px; padding: 1.25rem 1.5rem;
+      margin: 2rem 0; border: 1px solid #cbd5e1;
+    }
+    .tldr-box h2 { font-size: 1.25rem; margin: 0 0 .75rem; border: 0; padding: 0; }
+    .tldr-box ol, .tldr-box ul { margin-left: 1.25rem; }
+    .tldr-box li { margin: .3rem 0; font-weight: 500; }
+
+    .meta-bar { color: #64748b; font-size: .875rem; }
+    .meta-bar .dot { opacity: .4; margin: 0 .5rem; }
+  </style>
 </head>
 <body class="bg-white text-slate-900 antialiased">
-  <header class="max-w-3xl mx-auto px-6 py-6 border-b">
-    <a class="text-sky-700 text-sm" href="/">&larr; {{ site.title }}</a>
-  </header>
-  {% if post.featured_image_path %}
-  <figure class="max-w-4xl mx-auto px-6 mt-6">
-    <img src="/media/{{ post.featured_image_path }}" alt="{{ post.title }}"
-         class="w-full rounded-lg">
-  </figure>
-  {% endif %}
-  <main class="max-w-3xl mx-auto px-6 py-8 prose prose-slate">
-    <h1>{{ post.title }}</h1>
-    {{ post.body_html | safe }}
-  </main>
-  <footer class="max-w-3xl mx-auto px-6 py-8 border-t text-sm text-slate-500">
+
+  <nav class="border-b">
+    <div class="max-w-4xl mx-auto px-6 py-4 flex items-center gap-6">
+      <a class="font-semibold" href="/">{{ site.title }}</a>
+    </div>
+  </nav>
+
+  <article>
+    {% if post.featured_image_path %}
+    <figure class="max-w-5xl mx-auto px-6 mt-8">
+      <img src="/media/{{ post.featured_image_path }}" alt="{{ post.title }}"
+           class="w-full rounded-xl">
+    </figure>
+    {% endif %}
+
+    <header class="max-w-3xl mx-auto px-6 pt-8">
+      <h1 class="text-3xl md:text-4xl font-bold leading-tight text-slate-900">{{ post.title }}</h1>
+      <div class="mt-4 meta-bar flex flex-wrap items-center">
+        <span>Von <strong class="text-slate-700">{{ site.title }}</strong></span>
+        {% if post.published_at %}
+        <span class="dot">·</span>
+        <time datetime="{{ post.published_at.isoformat() }}">
+          {{ post.published_at.strftime('%d. %B %Y') }}
+        </time>
+        {% endif %}
+        <span class="dot">·</span>
+        <span>{{ ((post.body_markdown|length // 900) + 1) if post.body_markdown else 1 }} min Lesezeit</span>
+        <span class="dot">·</span>
+        <a href="/rss.xml" class="hover:text-slate-900">RSS</a>
+      </div>
+      {% if post.meta_description %}
+      <p class="mt-4 text-lg text-slate-600 leading-relaxed">{{ post.meta_description }}</p>
+      {% endif %}
+    </header>
+
+    <div class="max-w-3xl mx-auto px-6 py-8">
+      <div class="article-prose">
+        {{ post.body_html | safe }}
+      </div>
+    </div>
+  </article>
+
+  <footer class="max-w-3xl mx-auto px-6 py-10 border-t text-sm text-slate-500">
     <a class="hover:text-slate-900" href="/impressum">Impressum</a>
-    ·
+    <span class="mx-2">·</span>
     <a class="hover:text-slate-900" href="/datenschutz">Datenschutz</a>
-    ·
+    <span class="mx-2">·</span>
     <a class="hover:text-slate-900" href="/rss.xml">RSS</a>
   </footer>
+
+  <script>
+    // Promote the "Kernergebnisse" TL;DR section to the card-style box.
+    document.querySelectorAll('.article-prose h2').forEach(h => {
+      if (!/kernergebnisse|tl;dr|zusammenfassung/i.test(h.textContent)) return;
+      const wrapper = document.createElement('div');
+      wrapper.className = 'tldr-box';
+      const parent = h.parentNode;
+      parent.insertBefore(wrapper, h);
+      wrapper.appendChild(h);
+      // Pull following siblings up to the next H2 into the wrapper.
+      while (wrapper.nextSibling && wrapper.nextSibling.tagName !== 'H2') {
+        wrapper.appendChild(wrapper.nextSibling);
+      }
+    });
+  </script>
 </body>
 </html>

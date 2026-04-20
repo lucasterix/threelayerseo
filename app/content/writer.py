@@ -30,18 +30,65 @@ TIER_VOICE = {
         "sources inline. Clear headings."
     ),
     Tier.GOOD: (
-        "Authoritative, polished voice suitable for a niche expert site. "
-        "Cite sources. Use H2/H3 structure, examples, a summary box."
+        "Authoritative, data-driven, editorial voice — in the spirit of Backlinko "
+        "or Ahrefs studies. Every major claim anchored to a concrete number or "
+        "citation. Scannable structure with rich visual callouts."
     ),
+}
+
+TIER_STRUCTURE = {
+    Tier.GOOD: """Structure (backlinko-style):
+1. Opening hook in 1-2 sentences with a concrete number.
+2. A "## Kernergebnisse" (TL;DR) section — numbered list of 5-9 bullet
+   findings, each with a hard number.
+3. An introductory paragraph explaining methodology / why you analysed X.
+4. H2 sections, each with:
+   - ONE descriptive finding headline ("Posts mit X ranken 3× besser als Y")
+   - 2-3 paragraphs explaining + example
+   - A chart placeholder where data would strengthen the point:
+     [[CHART:short description with realistic numbers]]
+   - End each section with a key-takeaway box:
+     !!! note "Kernpunkt"
+         Einzelsatz, was der Leser mitnehmen soll.
+   - Use pull-quotes once or twice with:
+     !!! quote
+         Die zitierte Aussage.
+5. A closing "## Fazit" with the three most important practical steps.
+
+Include at least ONE chart placeholder in the article. Use 2-3
+Kernpunkt-Boxen across the article. The admonition syntax (!!! note,
+!!! quote) requires the indented content on the next line.
+""",
+    Tier.MEDIUM: """Structure:
+- Brief intro.
+- 4-6 H2 sections with clear headlines.
+- Lists where they help (numbered how-tos, bullet comparisons).
+- Optional [[CHART:description]] for the one key comparison.
+- Short "## Fazit" or "## Zusammenfassung" at the end.
+""",
+    Tier.BAD: """Structure:
+- Straightforward intro.
+- 3-4 H2 sections, short paragraphs.
+- A final "## Fazit" one-paragraph takeaway.
+""",
 }
 
 SYSTEM_PROMPT = """You are a German-language blog post writer. Produce a single
 Markdown article from the given research brief. Include a front-matter YAML block
 with fields: title, description (<=160 chars), slug (kebab-case), primary_keyword.
-After the front-matter, write the article body in Markdown. Insert internal-link
-placeholders of the form [[BACKLINK:anchor]] where a backlink should go — the
-link graph layer will resolve these to real URLs. Do not invent sources; use only
-those in the brief."""
+
+After the front-matter, write the article body in Markdown following the
+structural guidance for the site's tier.
+
+Placeholders the pipeline resolves for you:
+- [[BACKLINK:anchor text]] — becomes a link to another site in our network
+  (tier-validated, flowing upward). Insert 1-3 per article.
+- [[CHART:short description with numbers]] — becomes a rendered Chart.js
+  image. Use for comparisons, trends over time, proportions.
+
+Do not invent sources or specific statistics you weren't given; when
+representing data in a chart, describe it as "beispielhafte Verteilung"
+or similar so the reader understands it's illustrative."""
 
 
 def write_post(
@@ -60,6 +107,7 @@ def write_post(
     client = Anthropic(api_key=settings.anthropic_api_key)
     profile = profile or pick_profile()
     tier_voice = TIER_VOICE[tier]
+    tier_structure = TIER_STRUCTURE.get(tier, "")
     user_parts = [
         f"Language: {language}",
         f"Primary keyword: {primary_keyword}",
@@ -67,6 +115,7 @@ def write_post(
         f"Stil-Profil: {profile.name} — {profile.tone_hint}",
         f"Zielumfang: {profile.words_min}-{profile.words_max} Wörter.",
         f"Backlink slots to include: {backlink_slots}",
+        tier_structure,
     ]
     if competitor_brief:
         user_parts.append(
