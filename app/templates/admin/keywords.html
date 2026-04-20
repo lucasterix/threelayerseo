@@ -1,0 +1,63 @@
+{% extends "admin/base.html" %}
+{% block title %}Keywords · ThreeLayerSEO{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-semibold mb-4">Keyword-Research (DataForSEO)</h1>
+
+{% if not configured %}
+<div class="mb-4 rounded bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-900">
+  DataForSEO ist noch nicht konfiguriert. Setze <code>DATAFORSEO_LOGIN</code> und
+  <code>DATAFORSEO_PASSWORD</code> in der Server-.env und restart.
+</div>
+{% endif %}
+
+<form
+  class="bg-white rounded-lg shadow p-5 space-y-4"
+  hx-post="/keywords/search"
+  hx-target="#kw-results"
+  hx-indicator="#kw-busy"
+>
+  <div class="flex items-center gap-4">
+    <label class="inline-flex items-center gap-1 text-sm">
+      <input type="radio" name="mode" value="volumes" checked>
+      Search-Volumes für eine Liste
+    </label>
+    <label class="inline-flex items-center gap-1 text-sm">
+      <input type="radio" name="mode" value="ideas">
+      Keyword-Ideen zu einem Seed
+    </label>
+  </div>
+
+  <label class="block">
+    <span class="text-sm text-slate-600">Keywords / Seeds (einer pro Zeile)</span>
+    <textarea
+      name="seeds" rows="8"
+      class="mt-1 w-full border rounded px-3 py-2 font-mono text-sm"
+      placeholder="hundefutter test&#10;beste hundenahrung&#10;hundefutter trocken"
+      required
+    ></textarea>
+    <span class="text-xs text-slate-500">
+      „Ideen"-Modus nutzt nur die erste Zeile und liefert bis zu 80 Vorschläge.
+    </span>
+  </label>
+
+  <label class="block text-sm">
+    <span class="text-slate-600">Location-Code</span>
+    <select name="location_code" class="mt-1 border rounded px-2 py-1">
+      <option value="2276" selected>Germany (2276)</option>
+      <option value="2040">Austria (2040)</option>
+      <option value="2756">Switzerland (2756)</option>
+      <option value="2840">United States (2840)</option>
+      <option value="2826">United Kingdom (2826)</option>
+    </select>
+  </label>
+
+  <div class="flex items-center gap-3">
+    <button type="submit" class="bg-slate-900 text-white px-4 py-2 rounded text-sm hover:bg-slate-800">
+      Abfragen
+    </button>
+    <span id="kw-busy" class="htmx-indicator text-sm text-slate-500">DataForSEO lädt …</span>
+  </div>
+</form>
+
+<div id="kw-results" class="mt-6"></div>
+{% endblock %}

@@ -36,6 +36,20 @@ class Settings(BaseSettings):
     # print(secrets.token_hex(16))".
     indexnow_key: str = ""
 
+    # DataForSEO (keyword research / SERPs / volumes). Basic auth =
+    # login:password. Leave empty to disable the keyword tool.
+    dataforseo_login: str = ""
+    dataforseo_password: str = ""
+
+    # Google Search Console OAuth. Client ID + secret come from a GCP
+    # project (Credentials -> OAuth 2.0 Client IDs, type "Web application"
+    # with redirect URI https://seo.zdkg.de/integrations/gsc/callback).
+    # The refresh token is populated after the user connects from the
+    # admin UI and stored back into .env via the integrations page.
+    google_client_id: str = ""
+    google_client_secret: str = ""
+    google_refresh_token: str = ""
+
 
 @lru_cache
 def get_settings() -> Settings:

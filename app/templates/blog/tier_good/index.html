@@ -9,13 +9,18 @@
 </head>
 <body class="bg-white text-slate-900 antialiased">
   <header class="max-w-3xl mx-auto px-6 py-10 border-b">
-    <h1 class="text-3xl font-semibold">{{ site.title }}</h1>
-    <p class="text-slate-600 mt-2">{{ site.topic }}</p>
+    {% if site.homepage_html %}
+      <article class="prose prose-slate max-w-none">{{ site.homepage_html | safe }}</article>
+    {% else %}
+      <h1 class="text-3xl font-semibold">{{ site.title }}</h1>
+      <p class="text-slate-600 mt-2">{{ site.topic }}</p>
+    {% endif %}
   </header>
   <main class="max-w-3xl mx-auto px-6 py-10 space-y-8">
+    <h2 class="text-xl font-semibold">Neueste Beiträge</h2>
     {% for p in posts %}
     <article>
-      <h2 class="text-xl font-semibold"><a class="hover:text-sky-700" href="/{{ p.slug }}">{{ p.title }}</a></h2>
+      <h3 class="text-lg font-semibold"><a class="hover:text-sky-700" href="/{{ p.slug }}">{{ p.title }}</a></h3>
       <p class="text-slate-600 mt-1">{{ p.body_markdown[:260] if p.body_markdown else '' }}...</p>
     </article>
     {% endfor %}

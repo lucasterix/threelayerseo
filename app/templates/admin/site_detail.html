@@ -9,6 +9,7 @@
       Tier {{ site.domain.tier.value }} – {{ site.domain.tier.name }} · Status
       <span class="inline-block text-xs px-2 py-0.5 rounded
         {% if site.status.value == 'live' %}bg-emerald-100 text-emerald-800
+        {% elif site.status.value == 'building' %}bg-sky-100 text-sky-800
         {% else %}bg-slate-100 text-slate-700{% endif %}">{{ site.status.value }}</span>
     </p>
   </div>
@@ -58,6 +59,10 @@
         <input name="primary_keyword" placeholder="hundefutter test"
                class="mt-1 w-full border rounded px-2 py-1" required>
       </label>
+      <label class="block">
+        <span class="text-slate-600">Geplante Veröffentlichung (optional)</span>
+        <input name="scheduled_at" type="datetime-local" class="mt-1 w-full border rounded px-2 py-1">
+      </label>
       <button class="bg-emerald-600 text-white px-3 py-1.5 rounded text-sm hover:bg-emerald-700">
         Research → Write queuen
       </button>
@@ -70,6 +75,25 @@
 
 </div>
 
+<section class="mt-6 bg-white rounded-lg shadow p-5">
+  <div class="flex items-center justify-between mb-3">
+    <h2 class="font-semibold">Homepage</h2>
+    <form method="post" action="/sites/{{ site.id }}/homepage">
+      <button class="bg-sky-600 text-white px-3 py-1.5 rounded text-sm hover:bg-sky-700">
+        {% if site.homepage_html %}Homepage neu generieren{% else %}Homepage generieren{% endif %}
+      </button>
+    </form>
+  </div>
+  {% if site.homepage_html %}
+  <article class="prose prose-slate max-w-none text-sm border-t pt-4">{{ site.homepage_html | safe }}</article>
+  {% else %}
+  <p class="text-slate-500 text-sm">
+    Noch keine Homepage. Der Generator schreibt Hero + Intro + Kategorien auf Basis von
+    <code>topic</code> mit Tier-passendem Stil.
+  </p>
+  {% endif %}
+</section>
+
 <section class="mt-6 bg-white rounded-lg shadow overflow-hidden">
   <div class="px-4 py-3 border-b flex items-center justify-between">
     <h2 class="font-semibold">Posts ({{ posts|length }})</h2>
@@ -80,6 +104,7 @@
         <th class="text-left px-4 py-2">Titel / Slug</th>
         <th class="text-left px-4 py-2">Keyword</th>
         <th class="text-left px-4 py-2">Status</th>
+        <th class="text-left px-4 py-2">Scheduled</th>
         <th class="text-left px-4 py-2">Aktion</th>
       </tr>
     </thead>
@@ -100,16 +125,22 @@
             {{ p.status.value }}
           </span>
         </td>
-        <td class="px-4 py-2">
+        <td class="px-4 py-2 text-xs text-slate-500">
+          {{ p.scheduled_at.strftime('%Y-%m-%d %H:%M') if p.scheduled_at else '—' }}
+        </td>
+        <td class="px-4 py-2 space-x-2">
           {% if p.status.value in ('ready', 'failed') %}
           <form method="post" action="/posts/{{ p.id }}/publish" class="inline">
             <button class="text-emerald-700 hover:underline text-xs">publish</button>
           </form>
           {% endif %}
+          <form method="post" action="/posts/{{ p.id }}/regenerate" class="inline">
+            <button class="text-amber-700 hover:underline text-xs">regen</button>
+          </form>
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="4" class="px-4 py-8 text-center text-slate-500">
+      <tr><td colspan="5" class="px-4 py-8 text-center text-slate-500">
         Noch keine Posts.
       </td></tr>
       {% endfor %}

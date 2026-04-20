@@ -1,38 +1,56 @@
 {% extends "admin/base.html" %}
 {% block title %}{{ post.title }} · ThreeLayerSEO{% endblock %}
 {% block content %}
-<div class="mb-6">
-  <a href="/sites/{{ post.site_id }}" class="text-sm text-sky-700 hover:underline">
-    ← {{ post.site.domain.name }}
-  </a>
-  <h1 class="text-2xl font-semibold mt-1">{{ post.title }}</h1>
-  <p class="text-sm text-slate-500 mt-1">
-    /{{ post.slug }} · Keyword: <span class="font-mono">{{ post.primary_keyword }}</span>
-    · Status: <span class="inline-block text-xs px-2 py-0.5 rounded bg-slate-100">{{ post.status.value }}</span>
-  </p>
+<div class="mb-6 flex items-start justify-between gap-4">
+  <div>
+    <a href="/sites/{{ post.site_id }}" class="text-sm text-sky-700 hover:underline">
+      ← {{ post.site.domain.name }}
+    </a>
+    <h1 class="text-2xl font-semibold mt-1">{{ post.title }}</h1>
+    <p class="text-sm text-slate-500 mt-1">
+      /{{ post.slug }} · Keyword: <span class="font-mono">{{ post.primary_keyword }}</span>
+      · Status: <span class="inline-block text-xs px-2 py-0.5 rounded bg-slate-100">{{ post.status.value }}</span>
+    </p>
+  </div>
+  <div class="flex gap-2">
+    {% if post.status.value in ('ready','failed','published') %}
+    <form method="post" action="/posts/{{ post.id }}/publish">
+      <button class="bg-emerald-600 text-white px-3 py-1.5 rounded text-sm hover:bg-emerald-700">
+        {% if post.status.value == 'published' %}Re-Publish{% else %}Publish{% endif %}
+      </button>
+    </form>
+    {% endif %}
+    <form method="post" action="/posts/{{ post.id }}/regenerate">
+      <button class="bg-amber-600 text-white px-3 py-1.5 rounded text-sm hover:bg-amber-700">Regenerate</button>
+    </form>
+  </div>
 </div>
 
 <div class="grid md:grid-cols-2 gap-6">
   <section class="bg-white rounded-lg shadow p-5">
-    <h2 class="font-semibold mb-3">HTML-Render (Vorschau)</h2>
-    <article class="prose prose-slate max-w-none text-sm">
-      {{ post.body_html | safe if post.body_html else '<p class="text-slate-500">Noch kein Content.</p>' | safe }}
-    </article>
+    <h2 class="font-semibold mb-3">Inhalt bearbeiten</h2>
+    <form method="post" action="/posts/{{ post.id }}/edit" class="space-y-3 text-sm">
+      <label class="block">
+        <span class="text-slate-600">Titel</span>
+        <input name="title" value="{{ post.title }}" class="mt-1 w-full border rounded px-2 py-1">
+      </label>
+      <label class="block">
+        <span class="text-slate-600">Markdown</span>
+        <textarea name="body_markdown" rows="20"
+                  class="mt-1 w-full border rounded px-2 py-1 font-mono text-xs">{{ post.body_markdown or '' }}</textarea>
+      </label>
+      <button class="bg-slate-900 text-white px-3 py-1.5 rounded text-sm">Speichern</button>
+      <p class="text-xs text-slate-500">Speichern rendert das Markdown neu als HTML.</p>
+    </form>
   </section>
 
   <section class="bg-white rounded-lg shadow p-5">
-    <h2 class="font-semibold mb-3">Research-Brief</h2>
-    <pre class="text-xs bg-slate-50 rounded p-3 overflow-auto max-h-96">{{ post.research_json | tojson(indent=2) if post.research_json else 'kein Brief vorhanden' }}</pre>
-    <h2 class="font-semibold mt-5 mb-3">Markdown-Quelle</h2>
-    <pre class="text-xs bg-slate-50 rounded p-3 overflow-auto max-h-96 whitespace-pre-wrap">{{ post.body_markdown or 'kein Markdown vorhanden' }}</pre>
+    <h2 class="font-semibold mb-3">HTML-Render (Vorschau)</h2>
+    <article class="prose prose-slate max-w-none text-sm">
+      {% if post.body_html %}{{ post.body_html | safe }}{% else %}<p class="text-slate-500">Noch kein Content.</p>{% endif %}
+    </article>
+    <h2 class="font-semibold mt-5 mb-3">Research-Brief</h2>
+    <pre class="text-xs bg-slate-50 rounded p-3 overflow-auto max-h-80">{{ post.research_json | tojson(indent=2) if post.research_json else 'kein Brief vorhanden' }}</pre>
   </section>
 </div>
-
-{% if post.status.value in ('ready','failed') %}
-<form method="post" action="/posts/{{ post.id }}/publish" class="mt-6">
-  <button class="bg-emerald-600 text-white px-4 py-2 rounded text-sm hover:bg-emerald-700">
-    Jetzt publishen
-  </button>
-</form>
-{% endif %}
 {% endblock %}

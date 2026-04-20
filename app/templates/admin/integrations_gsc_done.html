@@ -1,0 +1,23 @@
+{% extends "admin/base.html" %}
+{% block title %}GSC Token · ThreeLayerSEO{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-semibold mb-4">Google Search Console verbunden</h1>
+
+{% if refresh_token %}
+<div class="bg-emerald-50 border border-emerald-200 rounded p-4 text-sm mb-6">
+  Kopiere diesen Refresh-Token ins Server-<code>.env</code> als
+  <code>GOOGLE_REFRESH_TOKEN=...</code> und starte den Admin-Container neu:
+</div>
+<pre class="bg-slate-900 text-slate-100 p-4 rounded text-xs overflow-auto">GOOGLE_REFRESH_TOKEN={{ refresh_token }}</pre>
+{% else %}
+<div class="bg-amber-50 border border-amber-200 rounded p-4 text-sm">
+  Google hat keinen Refresh-Token zurückgegeben. Das passiert, wenn das Konto schon früher
+  die App autorisiert hat. Geh zu
+  <a href="https://myaccount.google.com/permissions" class="underline" target="_blank">Google-Berechtigungen</a>,
+  entferne den Eintrag und versuch es erneut.
+</div>
+<pre class="bg-slate-100 p-4 rounded text-xs overflow-auto mt-4">{{ tokens | tojson(indent=2) }}</pre>
+{% endif %}
+
+<p class="mt-6 text-sm"><a href="/integrations" class="text-sky-700 hover:underline">← Zurück</a></p>
+{% endblock %}

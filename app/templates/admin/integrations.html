@@ -1,0 +1,73 @@
+{% extends "admin/base.html" %}
+{% block title %}Integrations · ThreeLayerSEO{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-semibold mb-6">Integrations</h1>
+
+<div class="space-y-6">
+
+  <section class="bg-white rounded-lg shadow p-5">
+    <h2 class="font-semibold mb-2">IndexNow (Bing · Yandex · Naver · Seznam)</h2>
+    <p class="text-sm text-slate-600 mb-2">
+      Sofortiges Benachrichtigen der teilnehmenden Suchmaschinen beim Publish.
+      Schlüssel liegt in der Server-.env und wird von jedem Site-Host unter
+      <code>/&lt;key&gt;.txt</code> serviert.
+    </p>
+    {% if indexnow_key %}
+    <div class="text-sm">
+      <span class="inline-block text-xs px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">aktiv</span>
+      <span class="font-mono ml-2">{{ indexnow_key }}</span>
+    </div>
+    {% else %}
+    <div class="text-sm text-amber-700">Kein Key gesetzt. Setze INDEXNOW_KEY in der Server-.env.</div>
+    {% endif %}
+  </section>
+
+  <section class="bg-white rounded-lg shadow p-5">
+    <h2 class="font-semibold mb-2">Google Search Console</h2>
+    <p class="text-sm text-slate-600 mb-3">
+      Ermöglicht (a) automatisches Einreichen der sitemap.xml und (b) DNS-basierte
+      Domain-Verification beim Erstellen einer neuen Site. Einmaliges Setup:
+    </p>
+    <ol class="list-decimal pl-5 text-sm text-slate-700 space-y-1 mb-4">
+      <li>In der Google Cloud Console ein Projekt erstellen, die APIs
+        <em>Search Console API</em> und <em>Site Verification API</em> aktivieren.</li>
+      <li>OAuth-Client anlegen (Web application), Redirect-URI
+        <code>https://seo.zdkg.de/integrations/gsc/callback</code> eintragen.</li>
+      <li>Client-ID + Secret in die Server-.env:
+        <code>GOOGLE_CLIENT_ID</code>, <code>GOOGLE_CLIENT_SECRET</code>. Admin-Container neu starten.</li>
+      <li>Unten auf „Connect" klicken, Google-Consent abnicken, den angezeigten
+        Refresh-Token in die .env als <code>GOOGLE_REFRESH_TOKEN</code> eintragen und
+        Admin neu starten.</li>
+    </ol>
+    <div class="flex items-center gap-3 text-sm">
+      <span class="inline-block text-xs px-2 py-0.5 rounded
+        {% if gsc_connected %}bg-emerald-100 text-emerald-800
+        {% elif gsc_client_set %}bg-amber-100 text-amber-800
+        {% else %}bg-slate-100 text-slate-700{% endif %}">
+        {% if gsc_connected %}connected{% elif gsc_client_set %}client set, token missing{% else %}not configured{% endif %}
+      </span>
+      {% if gsc_client_set and not gsc_connected %}
+      <a href="/integrations/gsc/connect" class="bg-sky-600 text-white px-3 py-1.5 rounded text-sm hover:bg-sky-700">
+        Connect
+      </a>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="bg-white rounded-lg shadow p-5">
+    <h2 class="font-semibold mb-2">DataForSEO (Keyword-Research)</h2>
+    <p class="text-sm text-slate-600 mb-3">
+      Basic Auth mit Login + Passwort. In der Server-.env als <code>DATAFORSEO_LOGIN</code>
+      und <code>DATAFORSEO_PASSWORD</code>. Danach ist
+      <a href="/keywords" class="text-sky-700 hover:underline">Keywords</a> einsatzbereit.
+    </p>
+    <div class="text-sm">
+      <span class="inline-block text-xs px-2 py-0.5 rounded
+        {% if dataforseo_set %}bg-emerald-100 text-emerald-800{% else %}bg-slate-100 text-slate-700{% endif %}">
+        {% if dataforseo_set %}configured{% else %}not configured{% endif %}
+      </span>
+    </div>
+  </section>
+
+</div>
+{% endblock %}

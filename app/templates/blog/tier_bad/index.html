@@ -4,11 +4,20 @@
   <meta charset="utf-8">
   <title>{{ site.title }}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <style>body{font-family:Arial,sans-serif;max-width:720px;margin:2rem auto;padding:0 1rem;color:#333}a{color:#06c}h1{font-size:1.6rem}</style>
+  <style>
+    body{font-family:Arial,sans-serif;max-width:720px;margin:2rem auto;padding:0 1rem;color:#333;line-height:1.55}
+    a{color:#06c}h1{font-size:1.6rem;margin-bottom:.4rem}h2{font-size:1.2rem;margin-top:1.8rem}
+    ul{padding-left:1.2rem}.hp{border-bottom:1px solid #ddd;padding-bottom:1rem;margin-bottom:1.2rem}
+  </style>
 </head>
 <body>
+  {% if site.homepage_html %}
+  <section class="hp">{{ site.homepage_html | safe }}</section>
+  {% else %}
   <h1>{{ site.title }}</h1>
   <p>{{ site.topic }}</p>
+  {% endif %}
+  <h2>Beiträge</h2>
   <ul>
     {% for p in posts %}<li><a href="/{{ p.slug }}">{{ p.title }}</a></li>{% endfor %}
   </ul>

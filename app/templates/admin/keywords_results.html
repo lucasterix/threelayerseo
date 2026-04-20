@@ -1,0 +1,29 @@
+<div class="bg-white rounded-lg shadow overflow-hidden">
+  <div class="px-4 py-3 border-b text-sm">
+    {{ results|length }} Ergebnisse ({{ mode }})
+  </div>
+  <table class="w-full text-sm">
+    <thead class="bg-slate-100 text-slate-600 uppercase text-xs tracking-wide">
+      <tr>
+        <th class="text-left px-3 py-2">Keyword</th>
+        <th class="text-left px-3 py-2">Search-Volume</th>
+        <th class="text-left px-3 py-2">CPC</th>
+        <th class="text-left px-3 py-2">Competition</th>
+        {% if mode == 'ideas' %}<th class="text-left px-3 py-2">Difficulty</th>{% endif %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in results|sort(attribute='search_volume', reverse=True) %}
+      <tr class="border-t border-slate-100">
+        <td class="px-3 py-2 font-mono">{{ r.keyword }}</td>
+        <td class="px-3 py-2">{{ r.search_volume if r.search_volume is not none else '—' }}</td>
+        <td class="px-3 py-2">{{ '%.2f'|format(r.cpc) if r.cpc else '—' }}</td>
+        <td class="px-3 py-2">{{ '%.2f'|format(r.competition) if r.competition else '—' }}</td>
+        {% if mode == 'ideas' %}<td class="px-3 py-2">{{ r.difficulty if r.difficulty is not none else '—' }}</td>{% endif %}
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="px-3 py-8 text-center text-slate-500">Keine Treffer.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
