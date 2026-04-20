@@ -38,43 +38,74 @@
   </section>
 
   <section class="bg-white rounded-lg shadow p-5">
-    <h2 class="font-semibold mb-2">Cloudflare (IP-Verschleierung via Orange-Cloud)</h2>
+    <h2 class="font-semibold mb-2">Cloudflare (IP-Verschleierung)</h2>
     <p class="text-sm text-slate-600 mb-3">
-      Größte Einzelmaßnahme gegen Same-IP-Footprint: Domains werden als CF-Zonen
-      angelegt, Nameserver bei INWX auf CF umgestellt, A-Records laufen proxied
-      (Clients sehen CF-Anycast-IPs, Origin 46.224.7.46 bleibt hinter CF).
+      Orange-Cloud vor Tier-1/2-Sites → Origin-IP versteckt sich hinter CF-Anycast-IPs,
+      kein zweiter Hetzner nötig. Onboarding pro Domain per Knopfdruck auf der Site-Detail-Seite.
     </p>
+
     {% if cf_configured %}
       {% if cf_info %}
       <div class="text-sm mb-3">
         <span class="inline-block text-xs px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
           token valid · status: {{ cf_info.status }}
         </span>
+        {% if cf_account_id %}
+        <span class="ml-3 text-slate-600">Account-ID: <span class="font-mono text-xs">{{ cf_account_id }}</span></span>
+        {% else %}
+        <span class="ml-3 text-amber-700 text-xs">⚠ CLOUDFLARE_ACCOUNT_ID fehlt — Zone-Create wird scheitern</span>
+        {% endif %}
       </div>
+
       {% if cf_accounts %}
-      <div class="text-sm text-slate-600">
-        <strong>Accounts erreichbar:</strong>
-        <ul class="list-disc pl-5 mt-1">
-          {% for acc in cf_accounts %}
-          <li>{{ acc.name }} <span class="font-mono text-xs text-slate-400">{{ acc.id }}</span></li>
-          {% endfor %}
-        </ul>
+      <div class="text-sm text-slate-600 mb-3">
+        <strong>Accounts:</strong>
+        {% for acc in cf_accounts %}
+        <span class="inline-block mr-2">{{ acc.name }} <span class="font-mono text-xs text-slate-400">({{ acc.id }})</span></span>
+        {% endfor %}
       </div>
       {% endif %}
-      <p class="text-xs text-slate-500 mt-4">
-        Domain-Onboarding auf CF (Zone + proxied A-Records) läuft pro Domain
-        über den Site-Detail-Screen — kommt im nächsten Schritt.
-      </p>
+
+      {% if cf_zones %}
+      <div class="mt-4 border-t pt-4">
+        <div class="font-medium text-sm mb-2">Bereits registrierte Zonen ({{ cf_zones|length }})</div>
+        <table class="w-full text-sm">
+          <thead class="text-slate-500 text-xs uppercase tracking-wide">
+            <tr>
+              <th class="text-left py-1">Domain</th>
+              <th class="text-left py-1">Status</th>
+              <th class="text-left py-1">Nameservers</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for z in cf_zones %}
+            <tr class="border-t">
+              <td class="py-1.5 font-mono text-xs">{{ z.name }}</td>
+              <td class="py-1.5">
+                <span class="inline-block text-xs px-2 py-0.5 rounded
+                  {% if z.status == 'active' %}bg-emerald-100 text-emerald-800
+                  {% elif z.status == 'pending' %}bg-amber-100 text-amber-800
+                  {% else %}bg-slate-100 text-slate-700{% endif %}">{{ z.status }}</span>
+              </td>
+              <td class="py-1.5 text-xs font-mono text-slate-500">{{ z.name_servers | join(', ') }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="text-sm text-slate-500 mt-4">Noch keine Zonen — auf Site-Detail „Push to Cloudflare" klicken.</p>
+      {% endif %}
       {% else %}
       <div class="text-sm text-red-700">
-        Token gesetzt, aber Verifizierung fehlgeschlagen.
-        Scopes prüfen: <code>Zone:Read, Zone:Edit, DNS:Edit</code>.
+        Token-Verifikation fehlgeschlagen. Scopes prüfen: mindestens
+        <code>Zone:Read</code>; Write-Token zusätzlich <code>Zone:Edit</code>, <code>DNS:Edit</code>.
       </div>
       {% endif %}
     {% else %}
     <div class="text-sm text-slate-700">
       <span class="inline-block text-xs px-2 py-0.5 rounded bg-slate-100">not configured</span>
-      Setze <code>CLOUDFLARE_API_TOKEN</code> in der Server-.env und Admin neustarten.
+      Setze <code>CLOUDFLARE_API_TOKEN</code> + <code>CLOUDFLARE_ACCOUNT_ID</code> in der Server-.env.
     </div>
     {% endif %}
   </section>
@@ -82,7 +113,7 @@
   <section class="bg-white rounded-lg shadow p-5">
     <h2 class="font-semibold mb-2">DataForSEO</h2>
     <p class="text-sm text-slate-600 mb-3">
-      Keyword-Research + Backlinks-Analyse (für Expired-Finder). Basic Auth mit
+      Keyword-Research + Backlinks-Analyse für Expired-Finder. Basic Auth mit
       <code>DATAFORSEO_LOGIN</code> / <code>DATAFORSEO_PASSWORD</code>.
     </p>
     <div class="text-sm">

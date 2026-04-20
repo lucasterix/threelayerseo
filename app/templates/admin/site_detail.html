@@ -133,6 +133,58 @@
 
 </div>
 
+{% set cf = (site.domain.meta or {}).get('cloudflare') %}
+<section class="mt-6 bg-white rounded-lg shadow p-5">
+  <div class="flex items-center justify-between mb-3">
+    <h2 class="font-semibold">Cloudflare (Origin-IP verschleiern)</h2>
+    {% if not cf %}
+    <form method="post" action="/sites/{{ site.id }}/cloudflare/onboard">
+      <button class="bg-orange-500 text-white px-3 py-1.5 rounded text-sm hover:bg-orange-600">
+        Push to Cloudflare (Orange Cloud)
+      </button>
+    </form>
+    {% endif %}
+  </div>
+
+  {% if cf %}
+  <div class="text-sm space-y-2">
+    <div>
+      Zone-Status:
+      <span class="inline-block text-xs px-2 py-0.5 rounded
+        {% if cf.status == 'active' %}bg-emerald-100 text-emerald-800
+        {% elif cf.status == 'pending' %}bg-amber-100 text-amber-800
+        {% else %}bg-slate-100 text-slate-700{% endif %}">{{ cf.status or 'unknown' }}</span>
+      <span class="ml-3 text-slate-500 text-xs">Zone-ID: <span class="font-mono">{{ cf.zone_id }}</span></span>
+    </div>
+    <div class="text-slate-600">
+      Origin (hinter Proxy): <span class="font-mono text-xs">{{ cf.origin_ip }}</span>
+    </div>
+    <div class="text-slate-600">
+      CF-Nameserver:
+      <span class="font-mono text-xs">{{ cf.name_servers | join(' · ') if cf.name_servers else '—' }}</span>
+    </div>
+    <div class="text-slate-600 text-xs">
+      INWX-NS auf CF umgestellt:
+      {% if cf.ns_switched_at_inwx %}
+        <span class="text-emerald-700">✓ ja</span> — Propagation dauert i.d.R. 5min bis 24h.
+      {% else %}
+        <span class="text-amber-700">✗ nein</span> — Die CF-NS oben manuell bei INWX eintragen, damit CF übernimmt.
+      {% endif %}
+    </div>
+    <form method="post" action="/sites/{{ site.id }}/cloudflare/onboard" class="mt-3">
+      <button class="text-xs text-sky-700 hover:underline">DNS-Records erneut anlegen / Re-Sync</button>
+    </form>
+  </div>
+  {% else %}
+  <p class="text-sm text-slate-500">
+    Diese Domain läuft <strong>nicht</strong> hinter Cloudflare. Klick auf „Push to Cloudflare" legt
+    eine Zone an, proxied apex + www, und schaltet die Nameserver bei INWX auf CF um. Origin-IP
+    (<span class="font-mono">{{ site.server.ip if site.server else '46.224.7.46' }}</span>) bleibt
+    danach hinter dem CF-Proxy versteckt.
+  </p>
+  {% endif %}
+</section>
+
 <section class="mt-6 bg-white rounded-lg shadow p-5">
   <div class="flex items-center justify-between mb-3">
     <h2 class="font-semibold">Homepage</h2>

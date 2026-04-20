@@ -506,6 +506,78 @@ async def site_update(
     return RedirectResponse(url=f"/sites/{site_id}", status_code=303)
 
 
+@router.post("/sites/{site_id}/cloudflare/onboard")
+async def site_cloudflare_onboard(
+    site_id: int,
+    _: str = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    """Create a CF zone for this site's domain, proxy apex+www to the
+    origin IP, and switch the INWX nameservers to the ones CF returns.
+    Stores the result in Domain.meta["cloudflare"] for later reference.
+    """
+    stmt = (
+        select(Site)
+        .options(joinedload(Site.domain), joinedload(Site.server))
+        .where(Site.id == site_id)
+    )
+    site = (await session.execute(stmt)).scalar_one_or_none()
+    if not site:
+        raise HTTPException(status_code=404)
+    if site.domain.status != DomainStatus.ACTIVE:
+        raise HTTPException(status_code=409, detail="domain muss ACTIVE sein")
+
+    from app.services.cloudflare import account_id as cf_account_id
+    from app.services.cloudflare import is_configured as cf_configured
+    from app.services.cloudflare import onboard_domain
+
+    if not cf_configured():
+        raise HTTPException(status_code=400, detail="Cloudflare nicht konfiguriert")
+    acct = cf_account_id()
+    if not acct:
+        raise HTTPException(status_code=400, detail="CLOUDFLARE_ACCOUNT_ID nicht gesetzt")
+
+    origin_ip = site.server.ip if site.server else settings.server_ip
+
+    try:
+        zone = onboard_domain(site.domain.name, origin_ip, acct)
+    except Exception as e:  # noqa: BLE001
+        log.exception("CF onboard failed for %s", site.domain.name)
+        raise HTTPException(status_code=502, detail=f"Cloudflare-Onboarding fehlgeschlagen: {e}")
+
+    nameservers = zone.get("name_servers") or []
+    ns_switched = False
+    if nameservers:
+        from app.registrars.inwx import InwxRegistrar
+
+        try:
+            inwx = InwxRegistrar()
+            ns_switched = inwx.set_nameservers(site.domain.name, list(nameservers))
+        except Exception:  # noqa: BLE001
+            log.warning("INWX NS switch failed for %s", site.domain.name, exc_info=True)
+
+    meta = dict(site.domain.meta or {})
+    meta["cloudflare"] = {
+        "zone_id": zone.get("id"),
+        "name": zone.get("name"),
+        "status": zone.get("status"),
+        "name_servers": list(nameservers),
+        "account_id": acct,
+        "origin_ip": origin_ip,
+        "ns_switched_at_inwx": ns_switched,
+    }
+    site.domain.meta = meta
+    await session.commit()
+    log.info(
+        "CF onboarded %s: zone=%s status=%s NS-switched=%s",
+        site.domain.name,
+        zone.get("id"),
+        zone.get("status"),
+        ns_switched,
+    )
+    return RedirectResponse(url=f"/sites/{site_id}", status_code=303)
+
+
 @router.post("/sites/{site_id}/homepage")
 async def site_homepage_generate(
     site_id: int,
@@ -799,18 +871,28 @@ async def integrations(
     request: Request,
     _: str = Depends(require_admin),
 ):
-    from app.services.cloudflare import is_configured as cf_configured, verify_token
+    from app.services.cloudflare import (
+        is_configured as cf_configured,
+        list_accounts as cf_list_accounts,
+        list_zones as cf_list_zones,
+        verify_token,
+    )
     from app.services.gsc import is_configured as gsc_configured, service_account_email
 
     cf_info = verify_token() if cf_configured() else None
     cf_accounts: list[dict] = []
+    cf_zones: list[dict] = []
     if cf_info:
         try:
-            from app.services.cloudflare import list_accounts
-
-            cf_accounts = list_accounts()
+            cf_accounts = cf_list_accounts()
         except Exception:  # noqa: BLE001
             log.warning("cloudflare list_accounts failed", exc_info=True)
+        try:
+            cf_zones = cf_list_zones(
+                account_id_=settings.cloudflare_account_id or None
+            )
+        except Exception:  # noqa: BLE001
+            log.warning("cloudflare list_zones failed", exc_info=True)
 
     return templates.TemplateResponse(
         "admin/integrations.html",
@@ -824,5 +906,7 @@ async def integrations(
             "cf_configured": cf_configured(),
             "cf_info": cf_info,
             "cf_accounts": cf_accounts,
+            "cf_zones": cf_zones,
+            "cf_account_id": settings.cloudflare_account_id,
         },
     )

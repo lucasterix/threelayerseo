@@ -52,6 +52,14 @@ class Settings(BaseSettings):
     # how we get IP diversity without buying a second host.
     cloudflare_api_token: str = ""
 
+    # Optional separate read-scope token (Account:Read + Zone:Read). If
+    # unset the main token is reused — works as long as it has read rights.
+    cloudflare_read_token: str = ""
+
+    # Cloudflare account UUID. Shown in the dashboard URL after login:
+    # dash.cloudflare.com/<ACCOUNT_ID>/. Required to create zones.
+    cloudflare_account_id: str = ""
+
     # Hetzner Cloud API token, for future auto-provisioning of new
     # servers when the fleet hits soft-capacity limits.
     hetzner_api_token: str = ""
