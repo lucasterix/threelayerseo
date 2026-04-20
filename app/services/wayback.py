@@ -51,12 +51,13 @@ def last_snapshot(domain: str) -> Snapshot | None:
     return Snapshot(url=closest["url"], timestamp=closest.get("timestamp", ""))
 
 
-def snapshot_count(domain: str, cap: int = 2000) -> tuple[int, str | None, str | None]:
+def snapshot_count(domain: str, cap: int = 500) -> tuple[int, str | None, str | None]:
     """Return (count, first_date, last_date) from the CDX index.
 
-    ``collapse=timestamp:8`` de-duplicates same-day captures so the number
-    represents distinct days seen — a better signal for "this was a real
-    site" than raw snapshot count.
+    Uses ``collapse=timestamp:8`` (dedupe by day) and ``fastLatest=true``
+    to bias toward speed. CDX can be slow or flaky — we time out at 25s
+    and degrade to zeros instead of raising so one bad domain doesn't
+    poison a batch analysis.
     """
     try:
         r = httpx.get(
@@ -66,6 +67,8 @@ def snapshot_count(domain: str, cap: int = 2000) -> tuple[int, str | None, str |
                 "output": "json",
                 "limit": cap,
                 "collapse": "timestamp:8",
+                "fastLatest": "true",
+                "filter": "statuscode:200",
             },
             timeout=25,
         )
@@ -76,7 +79,6 @@ def snapshot_count(domain: str, cap: int = 2000) -> tuple[int, str | None, str |
         return 0, None, None
     if not rows or len(rows) < 2:
         return 0, None, None
-    # header is rows[0]; data starts at rows[1]
     header = rows[0]
     try:
         ts_idx = header.index("timestamp")
