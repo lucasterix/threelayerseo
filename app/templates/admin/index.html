@@ -1,0 +1,32 @@
+{% extends "admin/base.html" %}
+{% block title %}Dashboard · ThreeLayerSEO{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-semibold mb-6">Dashboard</h1>
+
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+  {% for tier_name, stats in by_tier.items() %}
+  <div class="bg-white rounded-lg shadow p-5">
+    <div class="text-sm uppercase tracking-wide text-slate-500">Tier {{ tier_name }}</div>
+    <div class="mt-2 flex items-baseline gap-3">
+      <div class="text-3xl font-semibold">{{ stats.active }}</div>
+      <div class="text-slate-500">/ {{ stats.total }} aktiv</div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+  <div class="bg-white rounded-lg shadow p-5">
+    <div class="text-sm uppercase tracking-wide text-slate-500">Sites</div>
+    <div class="text-3xl font-semibold mt-2">{{ sites_count }}</div>
+  </div>
+  <div class="bg-white rounded-lg shadow p-5">
+    <div class="text-sm uppercase tracking-wide text-slate-500">Posts gesamt</div>
+    <div class="text-3xl font-semibold mt-2">{{ posts_total }}</div>
+  </div>
+  <div class="bg-white rounded-lg shadow p-5">
+    <div class="text-sm uppercase tracking-wide text-slate-500">Posts veröffentlicht</div>
+    <div class="text-3xl font-semibold mt-2">{{ posts_published }}</div>
+  </div>
+</div>
+{% endblock %}

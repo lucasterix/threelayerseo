@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="{{ site.language }}">
+<head>
+  <meta charset="utf-8">
+  <title>{{ post.title }} · {{ site.title }}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>body{font-family:Georgia,serif;max-width:760px;margin:0 auto;padding:2rem 1.2rem;color:#222;background:#fafafa}a{color:#c0392b}</style>
+</head>
+<body>
+  <p><a href="/">&larr; {{ site.title }}</a></p>
+  <h1>{{ post.title }}</h1>
+  <article>{{ post.body_html | safe }}</article>
+</body>
+</html>

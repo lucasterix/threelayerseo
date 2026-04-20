@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="{{ site.language }}">
+<head>
+  <meta charset="utf-8">
+  <title>{{ site.title }}</title>
+  <meta name="description" content="{{ site.topic }}">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body{font-family:Georgia,serif;max-width:760px;margin:0 auto;padding:2rem 1.2rem;color:#222;background:#fafafa}
+    h1{font-size:2rem}header{border-bottom:1px solid #ddd;padding-bottom:1rem;margin-bottom:2rem}
+    article{margin-bottom:1.2rem}a{color:#c0392b;text-decoration:none}a:hover{text-decoration:underline}
+  </style>
+</head>
+<body>
+  <header><h1>{{ site.title }}</h1><p>{{ site.topic }}</p></header>
+  {% for p in posts %}
+  <article><h2><a href="/{{ p.slug }}">{{ p.title }}</a></h2>
+    <p>{{ p.body_markdown[:220] if p.body_markdown else '' }}...</p>
+  </article>
+  {% endfor %}
+</body>
+</html>

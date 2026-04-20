@@ -1,0 +1,35 @@
+{% extends "admin/base.html" %}
+{% block title %}Domains · ThreeLayerSEO{% endblock %}
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-2xl font-semibold">Domains</h1>
+  <button class="bg-slate-900 text-white px-4 py-2 rounded-md text-sm">Domain(s) kaufen</button>
+</div>
+
+<div class="bg-white rounded-lg shadow overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-slate-100 text-slate-600 uppercase text-xs tracking-wide">
+      <tr>
+        <th class="text-left px-4 py-2">Domain</th>
+        <th class="text-left px-4 py-2">Tier</th>
+        <th class="text-left px-4 py-2">Status</th>
+        <th class="text-left px-4 py-2">Läuft ab</th>
+        <th class="text-left px-4 py-2">Preis</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for d in domains %}
+      <tr class="border-t border-slate-100">
+        <td class="px-4 py-2 font-mono">{{ d.name }}</td>
+        <td class="px-4 py-2">{{ d.tier.name }}</td>
+        <td class="px-4 py-2">{{ d.status.value }}</td>
+        <td class="px-4 py-2">{{ d.expires_at.strftime('%Y-%m-%d') if d.expires_at else '—' }}</td>
+        <td class="px-4 py-2">{{ '%.2f'|format(d.price_cents/100) ~ ' ' ~ d.currency if d.price_cents else '—' }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="px-4 py-8 text-center text-slate-500">Noch keine Domains.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

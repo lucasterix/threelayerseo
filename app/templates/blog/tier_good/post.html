@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="{{ site.language }}">
+<head>
+  <meta charset="utf-8">
+  <title>{{ post.title }} · {{ site.title }}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-white text-slate-900 antialiased">
+  <header class="max-w-3xl mx-auto px-6 py-6 border-b">
+    <a class="text-sky-700 text-sm" href="/">&larr; {{ site.title }}</a>
+  </header>
+  <main class="max-w-3xl mx-auto px-6 py-10 prose prose-slate">
+    <h1>{{ post.title }}</h1>
+    {{ post.body_html | safe }}
+  </main>
+</body>
+</html>

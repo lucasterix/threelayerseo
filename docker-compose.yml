@@ -1,0 +1,50 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5433:5432"
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+
+  admin:
+    build: .
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    env_file: .env
+    volumes:
+      - ./app:/srv/app/app
+    depends_on: [db, redis]
+    ports:
+      - "127.0.0.1:8100:8000"
+
+  renderer:
+    build: .
+    command: uvicorn app.renderer:app --host 0.0.0.0 --port 8000 --reload
+    env_file: .env
+    volumes:
+      - ./app:/srv/app/app
+    depends_on: [db, redis]
+    ports:
+      - "127.0.0.1:8101:8000"
+
+  worker:
+    build: .
+    command: python -m app.worker
+    env_file: .env
+    volumes:
+      - ./app:/srv/app/app
+    depends_on: [db, redis]
+
+volumes:
+  db_data:
+  redis_data:

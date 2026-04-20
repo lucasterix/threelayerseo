@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="{{ site.language }}">
+<head>
+  <meta charset="utf-8">
+  <title>{{ site.title }}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>body{font-family:Arial,sans-serif;max-width:720px;margin:2rem auto;padding:0 1rem;color:#333}a{color:#06c}h1{font-size:1.6rem}</style>
+</head>
+<body>
+  <h1>{{ site.title }}</h1>
+  <p>{{ site.topic }}</p>
+  <ul>
+    {% for p in posts %}<li><a href="/{{ p.slug }}">{{ p.title }}</a></li>{% endfor %}
+  </ul>
+</body>
+</html>
