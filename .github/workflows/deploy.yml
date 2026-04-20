@@ -55,31 +55,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install SSH key
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H 46.224.7.46 >> ~/.ssh/known_hosts
+      - uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
+
+      - name: Trust host key
+        run: ssh-keyscan -H 46.224.7.46 >> ~/.ssh/known_hosts
 
       - name: Sync deploy files to host
         run: |
-          rsync -az --delete \
-            deploy/docker-compose.prod.yml deploy/scripts/ deploy/nginx/ \
-            -e "ssh -i ~/.ssh/id_ed25519" \
-            deploy@46.224.7.46:~/apps/threelayerseo/ \
-            || true
-          # rsync with mixed sources/dirs is fragile — do it explicitly:
-          scp -i ~/.ssh/id_ed25519 deploy/docker-compose.prod.yml deploy@46.224.7.46:~/apps/threelayerseo/
-          scp -i ~/.ssh/id_ed25519 deploy/scripts/deploy.sh deploy@46.224.7.46:~/apps/threelayerseo/
+          ssh deploy@46.224.7.46 'mkdir -p ~/apps/threelayerseo ~/infra/caddy/conf.d'
+          scp deploy/docker-compose.prod.yml deploy@46.224.7.46:~/apps/threelayerseo/docker-compose.yml
+          scp deploy/scripts/deploy.sh       deploy@46.224.7.46:~/apps/threelayerseo/deploy.sh
+          scp deploy/nginx/seo.zdkg.de.caddy deploy@46.224.7.46:~/infra/caddy/conf.d/seo.zdkg.de.caddy
 
       - name: Deploy on host
         env:
           APP_IMAGE: ${{ needs.build.outputs.image }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USER: ${{ github.actor }}
         run: |
-          ssh -i ~/.ssh/id_ed25519 deploy@46.224.7.46 \
+          ssh deploy@46.224.7.46 \
             "cd ~/apps/threelayerseo && \
-             APP_IMAGE='${APP_IMAGE}' \
-             GHCR_USER='${{ github.actor }}' \
-             GHCR_TOKEN='${{ secrets.GHCR_READ_TOKEN }}' \
+             export APP_IMAGE='${APP_IMAGE}' GHCR_USER='${GHCR_USER}' GHCR_TOKEN='${GHCR_TOKEN}' && \
              bash deploy.sh"
