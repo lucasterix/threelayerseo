@@ -1,3 +1,4 @@
+{% from "admin/_partials.html" import category_select %}
 {% set avail = results|selectattr('available')|list %}
 {% set taken = results|rejectattr('available')|list %}
 
@@ -6,11 +7,8 @@
     <span>{{ avail|length }} verfügbar</span>
     <span class="text-slate-500">{{ taken|length }} vergeben</span>
     {% if avail %}
-    <button
-      type="submit"
-      form="buy-form"
-      class="ml-auto bg-emerald-600 text-white px-4 py-1.5 rounded text-sm hover:bg-emerald-700"
-    >
+    <button type="submit" form="buy-form"
+            class="ml-auto bg-emerald-600 text-white px-4 py-1.5 rounded text-sm hover:bg-emerald-700">
       Ausgewählte kaufen
     </button>
     {% endif %}
@@ -22,14 +20,13 @@
       <thead class="bg-slate-100 text-slate-600 uppercase text-xs tracking-wide">
         <tr>
           <th class="px-3 py-2 w-8">
-            <input
-              type="checkbox"
-              onchange="document.querySelectorAll('input[name=selected]').forEach(e=>e.checked=this.checked)"
-            >
+            <input type="checkbox"
+              onchange="document.querySelectorAll('input[name=selected]').forEach(e=>e.checked=this.checked)">
           </th>
           <th class="text-left px-3 py-2">Domain</th>
           <th class="text-left px-3 py-2">Preis</th>
           <th class="text-left px-3 py-2">Tier</th>
+          <th class="text-left px-3 py-2">Kategorie</th>
         </tr>
       </thead>
       <tbody>
@@ -49,6 +46,9 @@
               <option value="{{ val }}" {% if val == 1 %}selected{% endif %}>{{ val }} – {{ label }}</option>
               {% endfor %}
             </select>
+          </td>
+          <td class="px-3 py-2">
+            {{ category_select('category[' ~ r.name ~ ']', default_category or 'healthcare', categories, allow_empty=True) }}
           </td>
         </tr>
         {% endfor %}

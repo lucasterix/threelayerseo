@@ -76,16 +76,22 @@ async def _generate_homepage(site_id: int) -> None:
         site.status = SiteStatus.BUILDING
         await session.commit()
         try:
+            wayback_text = None
+            if site.domain.is_expired_purchase:
+                wayback_text = (site.domain.meta or {}).get("wayback_text")
             md, brief = generate_homepage_markdown(
                 topic=site.topic,
                 tier=Tier(site.domain.tier),
                 language=site.language,
+                wayback_context=wayback_text,
             )
             site.homepage_html = render_homepage_html(md)
             meta = dict(site.meta or {})
             meta["homepage_markdown"] = md
             if brief:
                 meta["homepage_brief"] = brief
+            if wayback_text:
+                meta["homepage_wayback_used"] = True
             site.meta = meta
             # If this was a fresh draft, flip to live so the blog serves
             site.status = SiteStatus.LIVE if prev_status == SiteStatus.DRAFT else prev_status

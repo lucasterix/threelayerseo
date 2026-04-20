@@ -39,7 +39,12 @@ Do not mention that you're an AI. Do not advertise services. Keep it
 concise — the homepage's job is to frame the content list below."""
 
 
-def generate_homepage_markdown(topic: str, tier: Tier, language: str = "de") -> tuple[str, dict | None]:
+def generate_homepage_markdown(
+    topic: str,
+    tier: Tier,
+    language: str = "de",
+    wayback_context: str | None = None,
+) -> tuple[str, dict | None]:
     if not settings.anthropic_api_key:
         raise RuntimeError("ANTHROPIC_API_KEY not set")
 
@@ -53,11 +58,28 @@ def generate_homepage_markdown(topic: str, tier: Tier, language: str = "de") -> 
         brief = None
 
     client = Anthropic(api_key=settings.anthropic_api_key)
-    user = (
-        f"Topic: {topic}\nLanguage: {language}\nTier voice: {TIER_STYLE[tier]}\n"
-        + (f"Research brief:\n{brief}\n" if brief else "")
-        + "Produce the homepage Markdown now."
-    )
+    user_parts = [
+        f"Topic: {topic}",
+        f"Language: {language}",
+        f"Tier voice: {TIER_STYLE[tier]}",
+    ]
+    if wayback_context:
+        user_parts.append(
+            "Historical context — this domain had a prior site with the "
+            "following content (Wayback Machine snapshot, may be cluttered):\n"
+            "-----\n"
+            f"{wayback_context}\n"
+            "-----\n"
+            "Take inspiration from the historical theme and vocabulary so the "
+            "new site feels continuous with what existed before, but write "
+            "fresh copy — don't quote or paraphrase. Preserve the semantic "
+            "niche; drop outdated promotional language, dead URLs, specific "
+            "brand/author names."
+        )
+    if brief:
+        user_parts.append(f"Research brief:\n{brief}")
+    user_parts.append("Produce the homepage Markdown now.")
+    user = "\n\n".join(user_parts)
     resp = client.messages.create(
         model=HOMEPAGE_MODEL,
         max_tokens=1500,

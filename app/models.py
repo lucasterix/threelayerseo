@@ -61,6 +61,7 @@ class Domain(Base):
     name: Mapped[str] = mapped_column(String(253), unique=True, index=True)
     tld: Mapped[str] = mapped_column(String(63), index=True)
     tier: Mapped[Tier] = mapped_column(Enum(Tier), index=True)
+    category: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
     status: Mapped[DomainStatus] = mapped_column(
         Enum(DomainStatus, native_enum=False, length=32),
         default=DomainStatus.PENDING,
@@ -72,6 +73,9 @@ class Domain(Base):
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     price_cents: Mapped[int | None] = mapped_column(Integer, nullable=True)
     currency: Mapped[str] = mapped_column(String(3), default="EUR")
+    is_expired_purchase: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    wayback_snapshots: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    backlink_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     meta: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

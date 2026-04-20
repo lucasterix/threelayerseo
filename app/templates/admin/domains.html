@@ -1,9 +1,29 @@
 {% extends "admin/base.html" %}
+{% from "admin/_partials.html" import sev_badge, category_badge %}
 {% block title %}Domains · ThreeLayerSEO{% endblock %}
 {% block content %}
-<div class="flex items-center justify-between mb-6">
+<div class="flex items-center justify-between mb-6 flex-wrap gap-3">
   <h1 class="text-2xl font-semibold">Domains</h1>
-  <a href="/domains/search" class="bg-slate-900 text-white px-4 py-2 rounded-md text-sm">Domain(s) kaufen</a>
+  <div class="flex items-center gap-3">
+    <form method="get" action="/domains" class="flex items-center gap-2">
+      <label class="text-sm text-slate-600">Filter:</label>
+      <select name="category" onchange="this.form.submit()" class="border rounded px-2 py-1 text-sm">
+        <option value="">alle Kategorien</option>
+        <optgroup label="Fokus">
+          {% for c in categories if c.key in ('healthcare','life-science','pharma','medtech') %}
+          <option value="{{ c.key }}" {% if selected_category == c.key %}selected{% endif %}>{{ c.label }}</option>
+          {% endfor %}
+        </optgroup>
+        <optgroup label="Sonstige">
+          {% for c in categories if c.key not in ('healthcare','life-science','pharma','medtech') %}
+          <option value="{{ c.key }}" {% if selected_category == c.key %}selected{% endif %}>{{ c.label }}</option>
+          {% endfor %}
+        </optgroup>
+      </select>
+    </form>
+    <a href="/expired" class="bg-slate-700 text-white px-3 py-2 rounded-md text-sm">Expired finden</a>
+    <a href="/domains/search" class="bg-slate-900 text-white px-4 py-2 rounded-md text-sm">Domain(s) kaufen</a>
+  </div>
 </div>
 
 <div class="bg-white rounded-lg shadow overflow-hidden">
@@ -11,8 +31,10 @@
     <thead class="bg-slate-100 text-slate-600 uppercase text-xs tracking-wide">
       <tr>
         <th class="text-left px-4 py-2">Domain</th>
+        <th class="text-left px-4 py-2">Kategorie</th>
         <th class="text-left px-4 py-2">Tier</th>
         <th class="text-left px-4 py-2">Status</th>
+        <th class="text-left px-4 py-2">Typ</th>
         <th class="text-left px-4 py-2">Läuft ab</th>
         <th class="text-left px-4 py-2">Preis</th>
         <th class="text-left px-4 py-2">Site</th>
@@ -21,17 +43,27 @@
     <tbody>
       {% for d in domains %}
       <tr class="border-t border-slate-100">
-        <td class="px-4 py-2 font-mono"><a href="https://{{ d.name }}" class="text-sky-700 hover:underline" target="_blank">{{ d.name }}</a></td>
+        <td class="px-4 py-2 font-mono">
+          <a href="https://{{ d.name }}" class="text-sky-700 hover:underline" target="_blank">{{ d.name }}</a>
+        </td>
+        <td class="px-4 py-2">{{ category_badge(d.category, categories) }}</td>
         <td class="px-4 py-2">{{ d.tier.value }} – {{ d.tier.name }}</td>
         <td class="px-4 py-2">
-          <span class="inline-block text-xs px-2 py-0.5 rounded
-            {% if d.status.value == 'active' %}bg-emerald-100 text-emerald-800
-            {% elif d.status.value == 'failed' %}bg-red-100 text-red-800
-            {% elif d.status.value == 'pending' %}bg-amber-100 text-amber-800
-            {% elif d.status.value == 'purchasing' %}bg-sky-100 text-sky-800
-            {% else %}bg-slate-100 text-slate-700{% endif %}">
-            {{ d.status.value }}
+          {{ sev_badge(
+            'green' if d.status.value == 'active' else
+            ('red' if d.status.value == 'failed' else
+             ('yellow' if d.status.value in ('pending','purchasing') else 'gray')),
+            d.status.value
+          ) }}
+        </td>
+        <td class="px-4 py-2">
+          {% if d.is_expired_purchase %}
+          <span class="inline-block text-xs px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-300">
+            expired {% if d.wayback_snapshots %}· {{ d.wayback_snapshots }} snaps{% endif %}
           </span>
+          {% else %}
+          <span class="text-xs text-slate-400">fresh</span>
+          {% endif %}
         </td>
         <td class="px-4 py-2">{{ d.expires_at.strftime('%Y-%m-%d') if d.expires_at else '—' }}</td>
         <td class="px-4 py-2">{{ '%.2f'|format(d.price_cents/100) ~ ' ' ~ d.currency if d.price_cents else '—' }}</td>
@@ -40,8 +72,9 @@
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="6" class="px-4 py-8 text-center text-slate-500">
-        Noch keine Domains. <a href="/domains/search" class="text-sky-700 hover:underline">Jetzt welche kaufen →</a>
+      <tr><td colspan="8" class="px-4 py-8 text-center text-slate-500">
+        Noch keine Domains. <a href="/domains/search" class="text-sky-700 hover:underline">Kaufen →</a>
+        · <a href="/expired" class="text-sky-700 hover:underline">Expired finden →</a>
       </td></tr>
       {% endfor %}
     </tbody>

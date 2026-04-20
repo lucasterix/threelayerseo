@@ -1,0 +1,56 @@
+{% extends "admin/base.html" %}
+{% block title %}Expired-Domain-Finder · ThreeLayerSEO{% endblock %}
+{% block content %}
+
+<h1 class="text-2xl font-semibold mb-2">Expired / Nearly-Expired Finder</h1>
+<p class="text-sm text-slate-600 mb-6 max-w-3xl">
+  Domain-Liste einfügen (z.B. aus expireddomains.net, spamzilla.io, einer eigenen
+  Crawl-Liste) — das Tool checkt jeden Kandidaten in einem Rutsch auf:
+</p>
+<ul class="text-sm text-slate-600 mb-6 list-disc pl-5 space-y-1 max-w-3xl">
+  <li><strong>INWX-Verfügbarkeit + Preis</strong> (Bulk-Call, einer für alle)</li>
+  <li><strong>Wayback-Machine-Historie</strong> — Anzahl eindeutiger Snapshot-Tage,
+    erste/letzte bekannte Momentaufnahme (= Hinweis auf realen Content-Background)</li>
+  <li><strong>DataForSEO-Backlinks</strong> — Rank (0-1000), total Backlinks,
+    referring Domains (= link-juice Potential)</li>
+</ul>
+<p class="text-sm text-slate-600 mb-6 max-w-3xl">
+  Nach dem Kauf: wenn du <em>„Expired-Purchase"</em> anhakst, holt der Worker
+  den letzten Wayback-Snapshot und füttert damit den Homepage-Generator —
+  so bleibt die semantische Nische aus der alten Site erhalten.
+</p>
+
+<form
+  class="bg-white rounded-lg shadow p-6 space-y-4"
+  hx-post="/expired/analyse"
+  hx-target="#expired-results"
+  hx-indicator="#expired-busy"
+>
+  <label class="block">
+    <span class="text-sm font-medium">Domains (einer pro Zeile, max 60)</span>
+    <textarea
+      name="domains_raw"
+      rows="12"
+      class="mt-1 w-full font-mono text-sm border rounded px-3 py-2 focus:ring-2 focus:ring-slate-500"
+      placeholder="altes-gesundheitsportal.de&#10;medizin-info.com&#10;pflege-tipps.net"
+      required
+    ></textarea>
+  </label>
+  <div class="flex items-center gap-3">
+    <button type="submit" class="bg-slate-900 text-white px-4 py-2 rounded text-sm hover:bg-slate-800">
+      Analysieren
+    </button>
+    <span id="expired-busy" class="htmx-indicator text-sm text-slate-500">
+      INWX + Wayback + DataForSEO parallelisieren …
+    </span>
+  </div>
+</form>
+
+<div id="expired-results" class="mt-6"></div>
+
+<p class="mt-8 text-xs text-slate-500 max-w-3xl">
+  <strong>Score-Heuristik:</strong> verfügbar +10 · Wayback-Snapshots (max 400) ÷ 5 ·
+  Backlinks-Rank (max 600) ÷ 10 · referring-main-domains (max 200) ÷ 2.
+  Höher = lohnender. Nicht absolut, aber gut für Sortierung innerhalb einer Batch.
+</p>
+{% endblock %}

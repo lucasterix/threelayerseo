@@ -1,0 +1,106 @@
+{% from "admin/_partials.html" import category_select %}
+{% set avail = results | selectattr('available') | list %}
+
+<div class="bg-white rounded-lg shadow overflow-hidden">
+  <div class="px-4 py-3 border-b text-sm flex items-center gap-4">
+    <span>{{ avail|length }} verfügbar · {{ results|length - avail|length }} vergeben</span>
+    {% if avail %}
+    <button type="submit" form="expired-buy"
+            class="ml-auto bg-emerald-600 text-white px-4 py-1.5 rounded text-sm hover:bg-emerald-700">
+      Ausgewählte kaufen (als Expired-Purchase)
+    </button>
+    {% endif %}
+  </div>
+
+  {% if avail %}
+  <form id="expired-buy" method="post" action="/domains/buy">
+    <table class="w-full text-sm">
+      <thead class="bg-slate-100 text-slate-600 uppercase text-xs tracking-wide">
+        <tr>
+          <th class="px-3 py-2 w-8"><input type="checkbox"
+            onchange="document.querySelectorAll('input[name=selected]').forEach(e=>e.checked=this.checked)"></th>
+          <th class="text-left px-3 py-2">Domain</th>
+          <th class="text-right px-3 py-2">Score</th>
+          <th class="text-right px-3 py-2">Wayback</th>
+          <th class="text-left px-3 py-2 whitespace-nowrap">erster / letzter Snap</th>
+          <th class="text-right px-3 py-2">Rank</th>
+          <th class="text-right px-3 py-2">Backlinks</th>
+          <th class="text-right px-3 py-2">Ref.-Domains</th>
+          <th class="text-right px-3 py-2">Preis</th>
+          <th class="text-left px-3 py-2">Tier</th>
+          <th class="text-left px-3 py-2">Kategorie</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in results %}
+          {% if r.available %}
+          <tr class="border-t border-slate-100">
+            <td class="px-3 py-2">
+              <input type="checkbox" name="selected" value="{{ r.name }}" checked>
+              <input type="hidden" name="expired[{{ r.name }}]" value="1">
+            </td>
+            <td class="px-3 py-2 font-mono text-xs">
+              <a href="https://web.archive.org/web/*/{{ r.name }}" target="_blank"
+                 class="hover:underline text-sky-700">{{ r.name }}</a>
+            </td>
+            <td class="px-3 py-2 text-right font-semibold
+              {% if r.score >= 60 %}text-emerald-700
+              {% elif r.score >= 30 %}text-amber-700
+              {% else %}text-slate-500{% endif %}">{{ r.score }}</td>
+            <td class="px-3 py-2 text-right {% if r.wayback_count == 0 %}text-slate-400{% endif %}">
+              {{ r.wayback_count }}
+            </td>
+            <td class="px-3 py-2 text-xs text-slate-500 whitespace-nowrap">
+              {% if r.wayback_first %}{{ r.wayback_first }} → {{ r.wayback_last }}{% else %}—{% endif %}
+            </td>
+            <td class="px-3 py-2 text-right">
+              {% if r.backlinks and r.backlinks.rank is not none %}{{ r.backlinks.rank }}{% else %}—{% endif %}
+            </td>
+            <td class="px-3 py-2 text-right">
+              {% if r.backlinks and r.backlinks.backlinks is not none %}{{ r.backlinks.backlinks }}{% else %}—{% endif %}
+            </td>
+            <td class="px-3 py-2 text-right">
+              {% if r.backlinks and r.backlinks.referring_main_domains is not none %}{{ r.backlinks.referring_main_domains }}{% else %}—{% endif %}
+            </td>
+            <td class="px-3 py-2 text-right">
+              {% if r.price_cents %}{{ '%.2f'|format(r.price_cents/100) }} {{ r.currency }}{% else %}—{% endif %}
+              <input type="hidden" name="price[{{ r.name }}]" value="{{ r.price_cents or '' }}">
+            </td>
+            <td class="px-3 py-2">
+              <select name="tier[{{ r.name }}]" class="border rounded px-2 py-1 text-sm">
+                {% for val, label in tier_choices %}
+                <option value="{{ val }}" {% if val == 3 %}selected{% endif %}>{{ val }} – {{ label }}</option>
+                {% endfor %}
+              </select>
+            </td>
+            <td class="px-3 py-2">
+              {{ category_select('category[' ~ r.name ~ ']', 'healthcare', categories, allow_empty=True) }}
+            </td>
+          </tr>
+          {% endif %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </form>
+  {% endif %}
+
+  {% set taken = results | rejectattr('available') | list %}
+  {% if taken %}
+  <details class="border-t border-slate-100">
+    <summary class="px-4 py-2 text-sm text-slate-500 cursor-pointer">
+      {{ taken|length }} vergebene Domains
+    </summary>
+    <ul class="px-4 py-2 text-sm text-slate-600 font-mono space-y-0.5">
+      {% for r in taken %}
+      <li>
+        {{ r.name }}
+        <span class="text-slate-400 text-xs ml-2">
+          {{ r.reason or 'vergeben' }} · {{ r.wayback_count }} snaps
+          {% if r.backlinks and r.backlinks.rank is not none %}· rank {{ r.backlinks.rank }}{% endif %}
+        </span>
+      </li>
+      {% endfor %}
+    </ul>
+  </details>
+  {% endif %}
+</div>

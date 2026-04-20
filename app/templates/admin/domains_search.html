@@ -1,4 +1,5 @@
 {% extends "admin/base.html" %}
+{% from "admin/_partials.html" import category_select %}
 {% block title %}Domains kaufen · ThreeLayerSEO{% endblock %}
 {% block content %}
 <h1 class="text-2xl font-semibold mb-6">Domain-Verfügbarkeit prüfen</h1>
@@ -37,11 +38,14 @@
     </div>
   </div>
 
+  <div>
+    <label class="block text-sm font-medium mb-1">Default-Kategorie für alle Kandidaten</label>
+    {{ category_select('default_category', 'healthcare', categories, allow_empty=True) }}
+    <p class="text-xs text-slate-500 mt-1">Pro Ergebnis einzeln änderbar.</p>
+  </div>
+
   <div class="flex items-center gap-3">
-    <button
-      type="submit"
-      class="bg-slate-900 text-white px-4 py-2 rounded text-sm hover:bg-slate-800"
-    >
+    <button type="submit" class="bg-slate-900 text-white px-4 py-2 rounded text-sm hover:bg-slate-800">
       Verfügbarkeit prüfen
     </button>
     <span id="busy" class="htmx-indicator text-sm text-slate-500">prüfe bei INWX …</span>

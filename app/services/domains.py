@@ -13,7 +13,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Domain, DomainStatus, Tier
-from app.registrars.base import DomainAvailability
 from app.registrars.inwx import InwxRegistrar
 
 # Conservative list used when a user enters a bare name without a TLD.
@@ -93,26 +92,37 @@ def check_availability(names: list[str]) -> list[SearchResult]:
     return out
 
 
-async def queue_purchases(session: AsyncSession, items: list[tuple[str, Tier, int | None]]) -> list[int]:
-    """Create Domain rows in PENDING status for each (name, tier, price_cents).
+@dataclass
+class PurchaseItem:
+    name: str
+    tier: Tier
+    price_cents: int | None = None
+    category: str | None = None
+    is_expired_purchase: bool = False
 
-    Returns list of Domain.id values the caller can hand to the worker queue.
-    Duplicates (already in DB) are skipped silently.
+
+async def queue_purchases(session: AsyncSession, items: list[PurchaseItem]) -> list[int]:
+    """Create Domain rows in PENDING status for each PurchaseItem.
+
+    Returns list of Domain.id values the caller can hand to the worker
+    queue. Duplicates (already in DB) are skipped silently.
     """
     created_ids: list[int] = []
-    for name, tier, price_cents in items:
-        existing = await session.scalar(select(Domain).where(Domain.name == name))
+    for item in items:
+        existing = await session.scalar(select(Domain).where(Domain.name == item.name))
         if existing:
             continue
-        tld = name.rsplit(".", 1)[-1]
+        tld = item.name.rsplit(".", 1)[-1]
         d = Domain(
-            name=name,
+            name=item.name,
             tld=tld,
-            tier=tier,
+            tier=item.tier,
+            category=item.category,
             status=DomainStatus.PENDING,
             registrar="inwx",
-            price_cents=price_cents,
+            price_cents=item.price_cents,
             currency="EUR",
+            is_expired_purchase=item.is_expired_purchase,
         )
         session.add(d)
         await session.flush()

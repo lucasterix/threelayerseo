@@ -28,7 +28,14 @@ from app.models import (
     Tier,
 )
 from app.queue import content_q, domains_q, publish_q, redis_conn
-from app.services.domains import DEFAULT_TLDS, check_availability, expand_candidates, queue_purchases
+from app.categories import all_categories, FEATURED_KEYS
+from app.services.domains import (
+    DEFAULT_TLDS,
+    PurchaseItem,
+    check_availability,
+    expand_candidates,
+    queue_purchases,
+)
 from app.services.footprint import analyse as footprint_analyse
 from app.services.servers import fleet_capacity
 from app.services.site_health import compute as compute_site_health
@@ -223,12 +230,23 @@ async def dashboard(
 @router.get("/domains", response_class=HTMLResponse)
 async def domains_list(
     request: Request,
+    category: str = "",
     _: str = Depends(require_admin),
     session: AsyncSession = Depends(get_session),
 ):
-    rows = (await session.execute(select(Domain).order_by(Domain.created_at.desc()))).scalars().all()
+    stmt = select(Domain).order_by(Domain.created_at.desc())
+    if category:
+        stmt = stmt.where(Domain.category == category)
+    rows = (await session.execute(stmt)).scalars().all()
     return templates.TemplateResponse(
-        "admin/domains.html", {"request": request, "domains": rows, "tiers": list(Tier)}
+        "admin/domains.html",
+        {
+            "request": request,
+            "domains": rows,
+            "tiers": list(Tier),
+            "categories": all_categories(),
+            "selected_category": category,
+        },
     )
 
 
@@ -239,7 +257,12 @@ async def domains_search_form(
 ):
     return templates.TemplateResponse(
         "admin/domains_search.html",
-        {"request": request, "default_tlds": DEFAULT_TLDS, "tier_choices": TIER_CHOICES},
+        {
+            "request": request,
+            "default_tlds": DEFAULT_TLDS,
+            "tier_choices": TIER_CHOICES,
+            "categories": all_categories(),
+        },
     )
 
 
@@ -248,6 +271,7 @@ async def domains_search(
     request: Request,
     names: str = Form(""),
     tlds: list[str] = Form(default_factory=list),
+    default_category: str = Form(""),
     _: str = Depends(require_admin),
 ):
     tlds = tlds or list(DEFAULT_TLDS)
@@ -271,7 +295,13 @@ async def domains_search(
         )
     return templates.TemplateResponse(
         "admin/domains_results.html",
-        {"request": request, "results": results, "tier_choices": TIER_CHOICES},
+        {
+            "request": request,
+            "results": results,
+            "tier_choices": TIER_CHOICES,
+            "categories": all_categories(),
+            "default_category": default_category,
+        },
     )
 
 
@@ -287,10 +317,12 @@ async def domains_buy(
         return HTMLResponse(
             '<div class="p-3 text-amber-700">Nichts ausgewählt.</div>', status_code=400
         )
-    items: list[tuple[str, Tier, int | None]] = []
+    items: list[PurchaseItem] = []
     for name in selected:
         tier_raw = form.get(f"tier[{name}]")
         price_raw = form.get(f"price[{name}]")
+        category = form.get(f"category[{name}]") or None
+        is_expired = form.get(f"expired[{name}]") == "1"
         try:
             tier = Tier(int(tier_raw)) if tier_raw else Tier.BAD
         except (ValueError, TypeError):
@@ -299,7 +331,15 @@ async def domains_buy(
             price_cents = int(price_raw) if price_raw else None
         except (ValueError, TypeError):
             price_cents = None
-        items.append((name, tier, price_cents))
+        items.append(
+            PurchaseItem(
+                name=name,
+                tier=tier,
+                price_cents=price_cents,
+                category=category,
+                is_expired_purchase=is_expired,
+            )
+        )
 
     domain_ids = await queue_purchases(session, items)
     for did in domain_ids:
@@ -312,6 +352,65 @@ async def domains_buy(
     resp = RedirectResponse(url="/domains", status_code=303)
     resp.headers["HX-Redirect"] = "/domains"
     return resp
+
+
+# ─── Expired-domain finder ─────────────────────────────────────────────────
+
+@router.get("/expired", response_class=HTMLResponse)
+async def expired_form(request: Request, _: str = Depends(require_admin)):
+    return templates.TemplateResponse(
+        "admin/expired.html",
+        {"request": request},
+    )
+
+
+@router.post("/expired/analyse", response_class=HTMLResponse)
+async def expired_analyse(
+    request: Request,
+    domains_raw: str = Form(""),
+    _: str = Depends(require_admin),
+):
+    candidates = []
+    seen: set[str] = set()
+    for line in domains_raw.splitlines():
+        s = line.strip().lower()
+        if not s or s.startswith("#"):
+            continue
+        # strip scheme/path/www
+        import re
+        s = re.sub(r"^https?://", "", s)
+        s = s.split("/")[0].lstrip("www.")
+        if "." not in s:
+            continue
+        if s not in seen:
+            seen.add(s)
+            candidates.append(s)
+    if not candidates:
+        return HTMLResponse('<div class="p-3 text-slate-500">Keine gültigen Domains erkannt.</div>')
+    if len(candidates) > 60:
+        return HTMLResponse(
+            f'<div class="p-3 text-red-700">Zu viele ({len(candidates)}). Maximum 60 pro Batch.</div>',
+            status_code=400,
+        )
+    try:
+        from app.services.expired import analyse
+
+        results = analyse(candidates)
+    except Exception as e:  # noqa: BLE001
+        log.exception("expired analyse failed")
+        return HTMLResponse(
+            f'<div class="p-3 text-red-700">Analyse fehlgeschlagen: {e}</div>',
+            status_code=502,
+        )
+    return templates.TemplateResponse(
+        "admin/expired_results.html",
+        {
+            "request": request,
+            "results": results,
+            "tier_choices": TIER_CHOICES,
+            "categories": all_categories(),
+        },
+    )
 
 
 # ─── Sites ──────────────────────────────────────────────────────────────────
@@ -700,7 +799,18 @@ async def integrations(
     request: Request,
     _: str = Depends(require_admin),
 ):
+    from app.services.cloudflare import is_configured as cf_configured, verify_token
     from app.services.gsc import is_configured as gsc_configured, service_account_email
+
+    cf_info = verify_token() if cf_configured() else None
+    cf_accounts: list[dict] = []
+    if cf_info:
+        try:
+            from app.services.cloudflare import list_accounts
+
+            cf_accounts = list_accounts()
+        except Exception:  # noqa: BLE001
+            log.warning("cloudflare list_accounts failed", exc_info=True)
 
     return templates.TemplateResponse(
         "admin/integrations.html",
@@ -711,5 +821,8 @@ async def integrations(
             "gsc_sa_email": service_account_email(),
             "gsc_key_path": settings.google_credentials_path,
             "dataforseo_set": bool(settings.dataforseo_login and settings.dataforseo_password),
+            "cf_configured": cf_configured(),
+            "cf_info": cf_info,
+            "cf_accounts": cf_accounts,
         },
     )

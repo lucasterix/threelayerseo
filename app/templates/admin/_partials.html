@@ -49,3 +49,32 @@
   {% endif %}
 </li>
 {%- endmacro %}
+
+{% macro category_badge(key, categories) -%}
+  {%- if not key -%}
+    <span class="inline-block text-xs px-2 py-0.5 rounded bg-slate-100 text-slate-500">—</span>
+  {%- else -%}
+    {%- set found = categories | selectattr('key', 'equalto', key) | list | first -%}
+    {%- if found -%}
+      <span class="inline-block text-xs px-2 py-0.5 rounded bg-{{ found.color }}-100 text-{{ found.color }}-800 border border-{{ found.color }}-300">{{ found.label }}</span>
+    {%- else -%}
+      <span class="inline-block text-xs px-2 py-0.5 rounded bg-slate-100 text-slate-700">{{ key }}</span>
+    {%- endif -%}
+  {%- endif -%}
+{%- endmacro %}
+
+{% macro category_select(field_name, selected_key, categories, allow_empty=True) -%}
+<select name="{{ field_name }}" class="border rounded px-2 py-1 text-sm">
+  {% if allow_empty %}<option value="">— Kategorie —</option>{% endif %}
+  <optgroup label="Fokus (Healthcare / Life Science)">
+    {% for c in categories if c.key in ('healthcare','life-science','pharma','medtech') %}
+    <option value="{{ c.key }}" {% if c.key == selected_key %}selected{% endif %}>{{ c.label }}</option>
+    {% endfor %}
+  </optgroup>
+  <optgroup label="Sonstige">
+    {% for c in categories if c.key not in ('healthcare','life-science','pharma','medtech') %}
+    <option value="{{ c.key }}" {% if c.key == selected_key %}selected{% endif %}>{{ c.label }}</option>
+    {% endfor %}
+  </optgroup>
+</select>
+{%- endmacro %}

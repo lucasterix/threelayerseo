@@ -47,6 +47,15 @@ class Settings(BaseSettings):
     # the integration cleanly.
     google_credentials_path: str = "/run/secrets/google-sa.json"
 
+    # Cloudflare API token (scope: Zone:Edit, DNS:Edit). Used to add
+    # domains as CF zones and flip the proxy ("orange cloud") on — that's
+    # how we get IP diversity without buying a second host.
+    cloudflare_api_token: str = ""
+
+    # Hetzner Cloud API token, for future auto-provisioning of new
+    # servers when the fleet hits soft-capacity limits.
+    hetzner_api_token: str = ""
+
 
 @lru_cache
 def get_settings() -> Settings:

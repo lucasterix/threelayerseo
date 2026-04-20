@@ -1,4 +1,5 @@
 {% extends "admin/base.html" %}
+{% from "admin/_partials.html" import sev_badge, category_badge %}
 {% block title %}Sites · ThreeLayerSEO{% endblock %}
 {% block content %}
 <h1 class="text-2xl font-semibold mb-6">Sites</h1>
@@ -8,8 +9,10 @@
     <thead class="bg-slate-100 text-slate-600 uppercase text-xs tracking-wide">
       <tr>
         <th class="text-left px-4 py-2">Domain</th>
+        <th class="text-left px-4 py-2">Kategorie</th>
         <th class="text-left px-4 py-2">Titel</th>
         <th class="text-left px-4 py-2">Tier</th>
+        <th class="text-left px-4 py-2">Server</th>
         <th class="text-left px-4 py-2">Status</th>
       </tr>
     </thead>
@@ -19,19 +22,41 @@
         <td class="px-4 py-2 font-mono">
           <a href="/sites/{{ s.id }}" class="text-sky-700 hover:underline">{{ s.domain.name }}</a>
         </td>
+        <td class="px-4 py-2">{{ category_badge(s.domain.category, None) if False else '' }}
+          {# Category_badge needs categories; simpler: resolve here #}
+          {% set c = s.domain.category %}
+          {% if c %}
+            <span class="inline-block text-xs px-2 py-0.5 rounded border
+              {% if c == 'healthcare' %}bg-emerald-100 text-emerald-800 border-emerald-300
+              {% elif c == 'life-science' %}bg-teal-100 text-teal-800 border-teal-300
+              {% elif c == 'pharma' %}bg-cyan-100 text-cyan-800 border-cyan-300
+              {% elif c == 'medtech' %}bg-sky-100 text-sky-800 border-sky-300
+              {% elif c == 'nutrition' %}bg-amber-100 text-amber-800 border-amber-300
+              {% elif c == 'fitness' %}bg-lime-100 text-lime-800 border-lime-300
+              {% elif c == 'psychology' %}bg-violet-100 text-violet-800 border-violet-300
+              {% elif c == 'finance' %}bg-indigo-100 text-indigo-800 border-indigo-300
+              {% elif c == 'legal' %}bg-slate-100 text-slate-800 border-slate-300
+              {% elif c == 'tech' %}bg-blue-100 text-blue-800 border-blue-300
+              {% elif c == 'ecommerce' %}bg-rose-100 text-rose-800 border-rose-300
+              {% elif c == 'lifestyle' %}bg-pink-100 text-pink-800 border-pink-300
+              {% else %}bg-gray-100 text-gray-800 border-gray-300{% endif %}">{{ c }}</span>
+          {% else %}<span class="text-xs text-slate-400">—</span>{% endif %}
+        </td>
         <td class="px-4 py-2">{{ s.title }}</td>
         <td class="px-4 py-2">{{ s.domain.tier.value }} – {{ s.domain.tier.name }}</td>
+        <td class="px-4 py-2 font-mono text-xs">
+          {% if s.server %}{{ s.server.hostname }}{% else %}<span class="text-slate-400">—</span>{% endif %}
+        </td>
         <td class="px-4 py-2">
-          <span class="inline-block text-xs px-2 py-0.5 rounded
-            {% if s.status.value == 'live' %}bg-emerald-100 text-emerald-800
-            {% elif s.status.value == 'building' %}bg-sky-100 text-sky-800
-            {% else %}bg-slate-100 text-slate-700{% endif %}">
-            {{ s.status.value }}
-          </span>
+          {{ sev_badge(
+            'green' if s.status.value == 'live' else
+            ('yellow' if s.status.value == 'building' else 'gray'),
+            s.status.value
+          ) }}
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="4" class="px-4 py-8 text-center text-slate-500">
+      <tr><td colspan="6" class="px-4 py-8 text-center text-slate-500">
         Noch keine Sites. Sie werden nach erfolgreichem Domain-Kauf automatisch als Draft angelegt.
       </td></tr>
       {% endfor %}

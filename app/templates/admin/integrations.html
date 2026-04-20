@@ -8,9 +8,8 @@
   <section class="bg-white rounded-lg shadow p-5">
     <h2 class="font-semibold mb-2">IndexNow (Bing · Yandex · Naver · Seznam)</h2>
     <p class="text-sm text-slate-600 mb-2">
-      Sofort-Push an die teilnehmenden Suchmaschinen beim Publish. Schlüssel
-      liegt in der Server-.env und wird pro Site unter <code>/&lt;key&gt;.txt</code>
-      ausgeliefert.
+      Sofort-Push beim Publish. Schlüssel liegt in .env und wird pro Site unter
+      <code>/&lt;key&gt;.txt</code> serviert.
     </p>
     {% if indexnow_key %}
     <div class="text-sm">
@@ -18,64 +17,73 @@
       <span class="font-mono ml-2">{{ indexnow_key }}</span>
     </div>
     {% else %}
-    <div class="text-sm text-amber-700">Kein Key gesetzt. Setze <code>INDEXNOW_KEY</code> in der Server-.env.</div>
+    <div class="text-sm text-amber-700">Kein Key. Setze INDEXNOW_KEY in .env.</div>
     {% endif %}
   </section>
 
   <section class="bg-white rounded-lg shadow p-5">
     <h2 class="font-semibold mb-2">Google Search Console (Service Account)</h2>
     <p class="text-sm text-slate-600 mb-3">
-      Auto-Onboarding nach Domain-Kauf: DNS-TXT via INWX → Google-Verification →
-      Site-Property anlegen → sitemap.xml einreichen. Läuft ohne OAuth-Consent
-      und ohne Ablaufzeit, solange der Service-Account-Key gültig ist.
+      Auto-Onboarding nach Domain-Kauf: DNS-TXT via INWX → Verifizierung → Site-Property → sitemap.xml.
     </p>
-    <ol class="list-decimal pl-5 text-sm text-slate-700 space-y-1 mb-4">
-      <li>
-        <a href="https://console.cloud.google.com/projectcreate" target="_blank" class="text-sky-700 hover:underline">GCP-Projekt erstellen</a>
-        (z.B. „threelayerseo").
-      </li>
-      <li>
-        APIs aktivieren:
-        <a href="https://console.cloud.google.com/apis/library/searchconsole.googleapis.com" target="_blank" class="text-sky-700 hover:underline">Search Console API</a>
-        und
-        <a href="https://console.cloud.google.com/apis/library/siteverification.googleapis.com" target="_blank" class="text-sky-700 hover:underline">Site Verification API</a>.
-      </li>
-      <li>
-        <a href="https://console.cloud.google.com/iam-admin/serviceaccounts" target="_blank" class="text-sky-700 hover:underline">Service-Account anlegen</a>
-        (Name: „threelayerseo-gsc", keine Rolle nötig).
-      </li>
-      <li>
-        Auf dem SA → <em>Keys</em> → <em>Add Key</em> → <em>JSON</em>. Das JSON landet im Download-Ordner.
-      </li>
-      <li>
-        Lokal: <code>scp ~/Downloads/threelayerseo-*.json threelayerseo:~/apps/threelayerseo/secrets/google-sa.json</code>
-      </li>
-      <li>
-        Server: <code>docker compose up -d admin renderer worker</code>
-      </li>
-    </ol>
-    {% if gsc_configured %}
     <div class="text-sm">
-      <span class="inline-block text-xs px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">configured</span>
+      <span class="inline-block text-xs px-2 py-0.5 rounded
+        {% if gsc_configured %}bg-emerald-100 text-emerald-800{% else %}bg-slate-100 text-slate-700{% endif %}">
+        {% if gsc_configured %}configured{% else %}not configured{% endif %}
+      </span>
       {% if gsc_sa_email %}
-      <div class="mt-2 text-slate-600">Service-Account: <span class="font-mono">{{ gsc_sa_email }}</span></div>
-      <div class="mt-1 text-xs text-slate-500">Diese Adresse wird von der Site-Verification-API als Owner eingetragen.</div>
+      <div class="mt-2 text-slate-600">SA: <span class="font-mono">{{ gsc_sa_email }}</span></div>
       {% endif %}
     </div>
+  </section>
+
+  <section class="bg-white rounded-lg shadow p-5">
+    <h2 class="font-semibold mb-2">Cloudflare (IP-Verschleierung via Orange-Cloud)</h2>
+    <p class="text-sm text-slate-600 mb-3">
+      Größte Einzelmaßnahme gegen Same-IP-Footprint: Domains werden als CF-Zonen
+      angelegt, Nameserver bei INWX auf CF umgestellt, A-Records laufen proxied
+      (Clients sehen CF-Anycast-IPs, Origin 46.224.7.46 bleibt hinter CF).
+    </p>
+    {% if cf_configured %}
+      {% if cf_info %}
+      <div class="text-sm mb-3">
+        <span class="inline-block text-xs px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
+          token valid · status: {{ cf_info.status }}
+        </span>
+      </div>
+      {% if cf_accounts %}
+      <div class="text-sm text-slate-600">
+        <strong>Accounts erreichbar:</strong>
+        <ul class="list-disc pl-5 mt-1">
+          {% for acc in cf_accounts %}
+          <li>{{ acc.name }} <span class="font-mono text-xs text-slate-400">{{ acc.id }}</span></li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+      <p class="text-xs text-slate-500 mt-4">
+        Domain-Onboarding auf CF (Zone + proxied A-Records) läuft pro Domain
+        über den Site-Detail-Screen — kommt im nächsten Schritt.
+      </p>
+      {% else %}
+      <div class="text-sm text-red-700">
+        Token gesetzt, aber Verifizierung fehlgeschlagen.
+        Scopes prüfen: <code>Zone:Read, Zone:Edit, DNS:Edit</code>.
+      </div>
+      {% endif %}
     {% else %}
-    <div class="text-sm">
-      <span class="inline-block text-xs px-2 py-0.5 rounded bg-slate-100 text-slate-700">not configured</span>
-      <span class="ml-2 text-slate-600">Erwarteter Pfad: <code class="font-mono">{{ gsc_key_path }}</code></span>
+    <div class="text-sm text-slate-700">
+      <span class="inline-block text-xs px-2 py-0.5 rounded bg-slate-100">not configured</span>
+      Setze <code>CLOUDFLARE_API_TOKEN</code> in der Server-.env und Admin neustarten.
     </div>
     {% endif %}
   </section>
 
   <section class="bg-white rounded-lg shadow p-5">
-    <h2 class="font-semibold mb-2">DataForSEO (Keyword-Research)</h2>
+    <h2 class="font-semibold mb-2">DataForSEO</h2>
     <p class="text-sm text-slate-600 mb-3">
-      Basic Auth mit Login + Passwort. In der Server-.env als
-      <code>DATAFORSEO_LOGIN</code> und <code>DATAFORSEO_PASSWORD</code>.
-      Danach ist <a href="/keywords" class="text-sky-700 hover:underline">Keywords</a> einsatzbereit.
+      Keyword-Research + Backlinks-Analyse (für Expired-Finder). Basic Auth mit
+      <code>DATAFORSEO_LOGIN</code> / <code>DATAFORSEO_PASSWORD</code>.
     </p>
     <div class="text-sm">
       <span class="inline-block text-xs px-2 py-0.5 rounded

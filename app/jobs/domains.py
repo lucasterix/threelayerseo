@@ -69,6 +69,25 @@ async def _register(domain_id: int) -> None:
             domain.status = DomainStatus.ACTIVE
             meta = dict(domain.meta or {})
 
+            # For expired-domain buys, capture the last Wayback snapshot so
+            # the homepage generator can use it as "this is what this site
+            # used to be about" context — preserves (and extends) the
+            # semantic theme Google already associates with the domain.
+            if domain.is_expired_purchase:
+                try:
+                    from app.services.wayback import fetch_snapshot_text, snapshot_count
+
+                    count, first, last = snapshot_count(domain.name)
+                    domain.wayback_snapshots = count
+                    wb_text = fetch_snapshot_text(domain.name)
+                    if wb_text:
+                        meta["wayback_text"] = wb_text
+                        meta["wayback_first"] = first
+                        meta["wayback_last"] = last
+                        log.info("captured wayback text (%d chars) for %s", len(wb_text), domain.name)
+                except Exception:  # noqa: BLE001
+                    log.warning("wayback capture failed for %s", domain.name, exc_info=True)
+
             # Google Search Console onboarding. Skipped cleanly if not configured.
             try:
                 from app.services.gsc import is_configured, onboard_domain_in_gsc

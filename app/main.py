@@ -18,6 +18,12 @@ POST_CREATE_MIGRATIONS = [
     "ALTER TABLE sites ADD COLUMN IF NOT EXISTS imprint_html TEXT",
     "ALTER TABLE sites ADD COLUMN IF NOT EXISTS privacy_html TEXT",
     "CREATE INDEX IF NOT EXISTS ix_sites_server_id ON sites(server_id)",
+    "ALTER TABLE domains ADD COLUMN IF NOT EXISTS category VARCHAR(32)",
+    "ALTER TABLE domains ADD COLUMN IF NOT EXISTS is_expired_purchase BOOLEAN DEFAULT false NOT NULL",
+    "ALTER TABLE domains ADD COLUMN IF NOT EXISTS wayback_snapshots INTEGER",
+    "ALTER TABLE domains ADD COLUMN IF NOT EXISTS backlink_score INTEGER",
+    "CREATE INDEX IF NOT EXISTS ix_domains_category ON domains(category)",
+    "CREATE INDEX IF NOT EXISTS ix_domains_is_expired_purchase ON domains(is_expired_purchase)",
 ]
 
 
