@@ -133,6 +133,48 @@
 
 </div>
 
+{% set imprint_md = (site.meta or {}).get('imprint_markdown', '') %}
+{% set privacy_md = (site.meta or {}).get('privacy_markdown', '') %}
+<section id="legal" class="mt-6 bg-white rounded-lg shadow p-5">
+  <div class="flex items-center justify-between mb-3">
+    <h2 class="font-semibold">Impressum & Datenschutz</h2>
+    <form method="post" action="/sites/{{ site.id }}/legal/generate">
+      <button class="bg-slate-700 text-white px-3 py-1.5 rounded text-sm hover:bg-slate-800">
+        {% if site.imprint_html and site.privacy_html %}Beide neu generieren{% else %}Impressum + Datenschutz generieren{% endif %}
+      </button>
+    </form>
+  </div>
+  <p class="text-xs text-amber-700 mb-4">
+    ⚠ AI-generiert. Vor Go-Live juristisch prüfen lassen — kein Ersatz für Anwalt.
+    Voraussetzung: <code>OPERATOR_NAME</code> + <code>OPERATOR_EMAIL</code> in Server-.env.
+  </p>
+
+  <div class="grid md:grid-cols-2 gap-4">
+    <div>
+      <h3 class="text-sm font-medium mb-1">Impressum</h3>
+      <form method="post" action="/sites/{{ site.id }}/legal/imprint" class="space-y-2">
+        <textarea name="imprint_markdown" rows="10"
+                  class="w-full border rounded px-2 py-1 font-mono text-xs">{{ imprint_md }}</textarea>
+        <button class="text-xs text-sky-700 hover:underline">Speichern</button>
+        {% if site.imprint_html %}
+        <span class="text-xs text-emerald-700 ml-2">✓ live unter /impressum</span>
+        {% endif %}
+      </form>
+    </div>
+    <div>
+      <h3 class="text-sm font-medium mb-1">Datenschutz</h3>
+      <form method="post" action="/sites/{{ site.id }}/legal/privacy" class="space-y-2">
+        <textarea name="privacy_markdown" rows="10"
+                  class="w-full border rounded px-2 py-1 font-mono text-xs">{{ privacy_md }}</textarea>
+        <button class="text-xs text-sky-700 hover:underline">Speichern</button>
+        {% if site.privacy_html %}
+        <span class="text-xs text-emerald-700 ml-2">✓ live unter /datenschutz</span>
+        {% endif %}
+      </form>
+    </div>
+  </div>
+</section>
+
 {% set cf = (site.domain.meta or {}).get('cloudflare') %}
 <section class="mt-6 bg-white rounded-lg shadow p-5">
   <div class="flex items-center justify-between mb-3">

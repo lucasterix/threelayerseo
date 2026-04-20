@@ -44,6 +44,7 @@ services:
     env_file: .env
     volumes:
       - ./secrets:/run/secrets:ro
+      - images_data:/srv/app/images:ro
     command: uvicorn app.renderer:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips=*
     depends_on:
       db: {condition: service_healthy}
@@ -56,6 +57,7 @@ services:
     env_file: .env
     volumes:
       - ./secrets:/run/secrets:ro
+      - images_data:/srv/app/images
     command: python -m app.worker
     depends_on:
       db: {condition: service_healthy}
@@ -65,6 +67,7 @@ services:
 volumes:
   db_data:
   redis_data:
+  images_data:
 
 networks:
   internal:

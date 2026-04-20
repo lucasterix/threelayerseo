@@ -24,6 +24,8 @@ POST_CREATE_MIGRATIONS = [
     "ALTER TABLE domains ADD COLUMN IF NOT EXISTS backlink_score INTEGER",
     "CREATE INDEX IF NOT EXISTS ix_domains_category ON domains(category)",
     "CREATE INDEX IF NOT EXISTS ix_domains_is_expired_purchase ON domains(is_expired_purchase)",
+    "ALTER TABLE posts ADD COLUMN IF NOT EXISTS featured_image_path VARCHAR(500)",
+    "ALTER TABLE posts ADD COLUMN IF NOT EXISTS featured_image_prompt TEXT",
 ]
 
 

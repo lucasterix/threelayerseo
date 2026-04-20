@@ -111,6 +111,32 @@ async def ping():
     return "ok"
 
 
+# ─── Legal pages (DE-Pflicht) ──────────────────────────────────────────────
+
+@router.get("/impressum", response_class=HTMLResponse)
+async def imprint(request: Request, session: AsyncSession = Depends(get_session)):
+    host = _host(request)
+    site = await _site_for_host(host, session)
+    body = site.imprint_html or '<p class="text-slate-500">Impressum noch nicht gesetzt.</p>'
+    template = f"blog/tier_{site.domain.tier.name.lower()}/legal.html"
+    return templates.TemplateResponse(
+        template,
+        {"request": request, "site": site, "title": "Impressum", "body_html": body},
+    )
+
+
+@router.get("/datenschutz", response_class=HTMLResponse)
+async def privacy(request: Request, session: AsyncSession = Depends(get_session)):
+    host = _host(request)
+    site = await _site_for_host(host, session)
+    body = site.privacy_html or '<p class="text-slate-500">Datenschutzerklärung noch nicht gesetzt.</p>'
+    template = f"blog/tier_{site.domain.tier.name.lower()}/legal.html"
+    return templates.TemplateResponse(
+        template,
+        {"request": request, "site": site, "title": "Datenschutzerklärung", "body_html": body},
+    )
+
+
 # ─── Blog ──────────────────────────────────────────────────────────────────
 
 @router.get("/", response_class=HTMLResponse)

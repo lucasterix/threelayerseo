@@ -166,6 +166,8 @@ class Post(Base):
     research_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     body_markdown: Mapped[str | None] = mapped_column(Text, nullable=True)
     body_html: Mapped[str | None] = mapped_column(Text, nullable=True)
+    featured_image_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    featured_image_prompt: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[PostStatus] = mapped_column(
         Enum(PostStatus, native_enum=False, length=16), default=PostStatus.PENDING
     )

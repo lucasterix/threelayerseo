@@ -13,6 +13,7 @@ from app.content.pipeline import generate_post
 from app.db import SessionLocal
 from app.models import Post, PostStatus, Site, SiteStatus, Tier
 from app.services.indexing import indexnow_submit
+from app.services.images import generate_for_post as generate_image_for_post
 
 log = logging.getLogger(__name__)
 
@@ -47,6 +48,22 @@ async def _generate_post(post_id: int, topic: str) -> None:
                 session.add(bl)
             await session.commit()
             log.info("generated post %s: %s", post.id, post.title)
+
+            # Featured image (best-effort — never blocks the pipeline).
+            try:
+                img = generate_image_for_post(
+                    post_id=post.id,
+                    slug=post.slug,
+                    title=post.title,
+                    topic=site.topic,
+                )
+                if img:
+                    filename, prompt_used = img
+                    post.featured_image_path = filename
+                    post.featured_image_prompt = prompt_used
+                    await session.commit()
+            except Exception:  # noqa: BLE001
+                log.warning("featured image skipped for post %s", post.id, exc_info=True)
 
             # Scheduled drip-feed: if the post has scheduled_at set, enqueue
             # the publish job at that time. Past timestamps publish now.
@@ -129,6 +146,64 @@ async def _publish(post_id: int) -> None:
             log.debug("GSC sitemap submit skipped", exc_info=True)
 
 
+async def _generate_legal(site_id: int) -> None:
+    async with SessionLocal() as session:
+        stmt = select(Site).options(joinedload(Site.domain)).where(Site.id == site_id)
+        site = (await session.execute(stmt)).scalar_one_or_none()
+        if not site:
+            return
+        from app.services.legal import (
+            generate_imprint_markdown,
+            generate_privacy_markdown,
+            to_html,
+        )
+
+        try:
+            imprint_md = generate_imprint_markdown(site.title, site.domain.name)
+            site.imprint_html = to_html(imprint_md)
+            meta = dict(site.meta or {})
+            meta["imprint_markdown"] = imprint_md
+            site.meta = meta
+        except Exception:  # noqa: BLE001
+            log.exception("imprint generation failed for site %s", site_id)
+
+        try:
+            privacy_md = generate_privacy_markdown(site.title, site.domain.name)
+            site.privacy_html = to_html(privacy_md)
+            meta = dict(site.meta or {})
+            meta["privacy_markdown"] = privacy_md
+            site.meta = meta
+        except Exception:  # noqa: BLE001
+            log.exception("privacy generation failed for site %s", site_id)
+
+        await session.commit()
+        log.info("legal pages generated for site %s", site_id)
+
+
+async def _generate_image(post_id: int, style: str = "") -> None:
+    async with SessionLocal() as session:
+        stmt = (
+            select(Post)
+            .options(joinedload(Post.site).joinedload(Site.domain))
+            .where(Post.id == post_id)
+        )
+        post = (await session.execute(stmt)).scalar_one_or_none()
+        if not post:
+            return
+        img = generate_image_for_post(
+            post_id=post.id,
+            slug=post.slug,
+            title=post.title,
+            topic=post.site.topic,
+            extra_style=style,
+        )
+        if img:
+            filename, prompt_used = img
+            post.featured_image_path = filename
+            post.featured_image_prompt = prompt_used
+            await session.commit()
+
+
 def generate_post_job(post_id: int, topic: str) -> None:
     asyncio.run(_generate_post(post_id, topic))
 
@@ -139,3 +214,11 @@ def generate_homepage_job(site_id: int) -> None:
 
 def publish_post_job(post_id: int) -> None:
     asyncio.run(_publish(post_id))
+
+
+def generate_legal_job(site_id: int) -> None:
+    asyncio.run(_generate_legal(site_id))
+
+
+def generate_image_job(post_id: int, style: str = "") -> None:
+    asyncio.run(_generate_image(post_id, style))

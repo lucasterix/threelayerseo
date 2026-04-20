@@ -591,6 +591,64 @@ async def site_homepage_generate(
     return RedirectResponse(url=f"/sites/{site_id}", status_code=303)
 
 
+@router.post("/sites/{site_id}/legal/generate")
+async def site_legal_generate(
+    site_id: int,
+    _: str = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    site = await session.get(Site, site_id)
+    if not site:
+        raise HTTPException(status_code=404)
+    if not (settings.operator_name and settings.operator_email):
+        raise HTTPException(
+            status_code=400,
+            detail="OPERATOR_NAME und OPERATOR_EMAIL müssen in der Server-.env gesetzt sein",
+        )
+    content_q.enqueue("app.jobs.content.generate_legal_job", site_id, job_timeout=300)
+    return RedirectResponse(url=f"/sites/{site_id}", status_code=303)
+
+
+@router.post("/sites/{site_id}/legal/imprint")
+async def site_legal_imprint_edit(
+    site_id: int,
+    imprint_markdown: str = Form(""),
+    _: str = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    site = await session.get(Site, site_id)
+    if not site:
+        raise HTTPException(status_code=404)
+    from app.services.legal import to_html
+
+    meta = dict(site.meta or {})
+    meta["imprint_markdown"] = imprint_markdown
+    site.meta = meta
+    site.imprint_html = to_html(imprint_markdown)
+    await session.commit()
+    return RedirectResponse(url=f"/sites/{site_id}#legal", status_code=303)
+
+
+@router.post("/sites/{site_id}/legal/privacy")
+async def site_legal_privacy_edit(
+    site_id: int,
+    privacy_markdown: str = Form(""),
+    _: str = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    site = await session.get(Site, site_id)
+    if not site:
+        raise HTTPException(status_code=404)
+    from app.services.legal import to_html
+
+    meta = dict(site.meta or {})
+    meta["privacy_markdown"] = privacy_markdown
+    site.meta = meta
+    site.privacy_html = to_html(privacy_markdown)
+    await session.commit()
+    return RedirectResponse(url=f"/sites/{site_id}#legal", status_code=303)
+
+
 @router.post("/sites/{site_id}/posts")
 async def post_create(
     site_id: int,
@@ -667,6 +725,22 @@ async def post_regenerate(
         post.id,
         post.title,
         job_timeout=900,
+    )
+    return RedirectResponse(url=f"/posts/{post_id}", status_code=303)
+
+
+@router.post("/posts/{post_id}/image")
+async def post_image_regenerate(
+    post_id: int,
+    style: str = Form(""),
+    _: str = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    post = await session.get(Post, post_id)
+    if not post:
+        raise HTTPException(status_code=404)
+    content_q.enqueue(
+        "app.jobs.content.generate_image_job", post.id, style, job_timeout=180
     )
     return RedirectResponse(url=f"/posts/{post_id}", status_code=303)
 

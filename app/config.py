@@ -64,6 +64,25 @@ class Settings(BaseSettings):
     # servers when the fleet hits soft-capacity limits.
     hetzner_api_token: str = ""
 
+    # ─── Site operator information (Impressum nach TMG §5 DE) ──────────────
+    # Filled once in .env; applied to every auto-generated imprint. Per-site
+    # overrides go via the admin form on site_detail.
+    operator_name: str = ""
+    operator_address: str = ""           # "Musterstraße 1, 12345 Musterstadt"
+    operator_email: str = ""
+    operator_phone: str = ""
+    operator_tax_id: str = ""            # e.g. "DE123456789" (optional)
+    operator_contact_url: str = ""       # used for DSGVO contact line
+
+    # ─── OpenAI Images (featured images) ────────────────────────────────────
+    # dall-e-3 standard 1024x1024 = $0.040 / image, dall-e-2 = $0.020.
+    # gpt-image-1 (low quality) is even cheaper at ~$0.011 if account has access.
+    openai_image_model: str = "dall-e-3"
+    openai_image_quality: str = "standard"   # or "hd"
+    openai_image_size: str = "1024x1024"
+    # Where the worker writes PNGs; renderer serves from the same volume.
+    images_dir: str = "/srv/app/images"
+
 
 @lru_cache
 def get_settings() -> Settings:

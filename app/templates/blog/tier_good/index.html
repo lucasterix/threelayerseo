@@ -8,7 +8,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-white text-slate-900 antialiased">
-  <header class="max-w-3xl mx-auto px-6 py-10 border-b">
+  <header class="max-w-4xl mx-auto px-6 py-10 border-b">
     {% if site.homepage_html %}
       <article class="prose prose-slate max-w-none">{{ site.homepage_html | safe }}</article>
     {% else %}
@@ -16,14 +16,30 @@
       <p class="text-slate-600 mt-2">{{ site.topic }}</p>
     {% endif %}
   </header>
-  <main class="max-w-3xl mx-auto px-6 py-10 space-y-8">
-    <h2 class="text-xl font-semibold">Neueste Beiträge</h2>
-    {% for p in posts %}
-    <article>
-      <h3 class="text-lg font-semibold"><a class="hover:text-sky-700" href="/{{ p.slug }}">{{ p.title }}</a></h3>
-      <p class="text-slate-600 mt-1">{{ p.body_markdown[:260] if p.body_markdown else '' }}...</p>
-    </article>
-    {% endfor %}
+  <main class="max-w-4xl mx-auto px-6 py-10">
+    <h2 class="text-xl font-semibold mb-6">Neueste Beiträge</h2>
+    <div class="grid md:grid-cols-2 gap-6">
+      {% for p in posts %}
+      <article class="border rounded-lg overflow-hidden hover:shadow-md transition">
+        {% if p.featured_image_path %}
+        <a href="/{{ p.slug }}">
+          <img src="/media/{{ p.featured_image_path }}" alt="" class="w-full h-48 object-cover">
+        </a>
+        {% endif %}
+        <div class="p-5">
+          <h3 class="text-lg font-semibold">
+            <a class="hover:text-sky-700" href="/{{ p.slug }}">{{ p.title }}</a>
+          </h3>
+          <p class="text-slate-600 mt-2 text-sm">{{ p.body_markdown[:200] if p.body_markdown else '' }}…</p>
+        </div>
+      </article>
+      {% endfor %}
+    </div>
   </main>
+  <footer class="max-w-4xl mx-auto px-6 py-8 border-t text-sm text-slate-500">
+    <a class="hover:text-slate-900" href="/impressum">Impressum</a>
+    ·
+    <a class="hover:text-slate-900" href="/datenschutz">Datenschutz</a>
+  </footer>
 </body>
 </html>

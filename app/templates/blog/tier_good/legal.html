@@ -2,7 +2,8 @@
 <html lang="{{ site.language }}">
 <head>
   <meta charset="utf-8">
-  <title>{{ post.title }} · {{ site.title }}</title>
+  <title>{{ title }} · {{ site.title }}</title>
+  <meta name="robots" content="noindex,follow">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
@@ -10,17 +11,10 @@
   <header class="max-w-3xl mx-auto px-6 py-6 border-b">
     <a class="text-sky-700 text-sm" href="/">&larr; {{ site.title }}</a>
   </header>
-  {% if post.featured_image_path %}
-  <figure class="max-w-4xl mx-auto px-6 mt-6">
-    <img src="/media/{{ post.featured_image_path }}" alt="{{ post.title }}"
-         class="w-full rounded-lg">
-  </figure>
-  {% endif %}
-  <main class="max-w-3xl mx-auto px-6 py-8 prose prose-slate">
-    <h1>{{ post.title }}</h1>
-    {{ post.body_html | safe }}
+  <main class="max-w-3xl mx-auto px-6 py-10 prose prose-slate">
+    {{ body_html | safe }}
   </main>
-  <footer class="max-w-3xl mx-auto px-6 py-8 border-t text-sm text-slate-500">
+  <footer class="max-w-3xl mx-auto px-6 py-6 border-t text-sm text-slate-500">
     <a class="hover:text-slate-900" href="/impressum">Impressum</a>
     ·
     <a class="hover:text-slate-900" href="/datenschutz">Datenschutz</a>

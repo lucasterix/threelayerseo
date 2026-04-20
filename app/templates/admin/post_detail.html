@@ -45,7 +45,23 @@
   </section>
 
   <section class="bg-white rounded-lg shadow p-5">
-    <h2 class="font-semibold mb-3">HTML-Render (Vorschau)</h2>
+    <h2 class="font-semibold mb-3">Featured Image</h2>
+    {% if post.featured_image_path %}
+    <img src="/media/{{ post.featured_image_path }}" alt="{{ post.title }}"
+         class="w-full rounded mb-2">
+    <p class="text-xs text-slate-500 mb-3">{{ post.featured_image_prompt }}</p>
+    {% else %}
+    <p class="text-sm text-slate-500 mb-3">Noch kein Bild generiert.</p>
+    {% endif %}
+    <form method="post" action="/posts/{{ post.id }}/image" class="flex gap-2 items-center text-sm">
+      <input name="style" placeholder="optionaler Stil-Hint (z.B. 'scientific, macro')"
+             class="flex-1 border rounded px-2 py-1">
+      <button class="bg-sky-600 text-white px-3 py-1.5 rounded text-sm hover:bg-sky-700">
+        {% if post.featured_image_path %}Neu generieren{% else %}Generieren{% endif %}
+      </button>
+    </form>
+
+    <h2 class="font-semibold mt-6 mb-3">HTML-Render (Vorschau)</h2>
     <article class="prose prose-slate max-w-none text-sm">
       {% if post.body_html %}{{ post.body_html | safe }}{% else %}<p class="text-slate-500">Noch kein Content.</p>{% endif %}
     </article>
