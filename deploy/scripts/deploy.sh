@@ -10,7 +10,9 @@ cd "$(dirname "$0")/.."
 export APP_IMAGE
 
 echo "[deploy] pulling $APP_IMAGE"
-echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin >/dev/null
+if [[ -n "${GHCR_TOKEN:-}" ]]; then
+    echo "$GHCR_TOKEN" | docker login ghcr.io -u "${GHCR_USER:-token}" --password-stdin >/dev/null
+fi
 docker pull "$APP_IMAGE"
 
 echo "[deploy] docker compose up"
