@@ -41,14 +41,11 @@ class Settings(BaseSettings):
     dataforseo_login: str = ""
     dataforseo_password: str = ""
 
-    # Google Search Console OAuth. Client ID + secret come from a GCP
-    # project (Credentials -> OAuth 2.0 Client IDs, type "Web application"
-    # with redirect URI https://seo.zdkg.de/integrations/gsc/callback).
-    # The refresh token is populated after the user connects from the
-    # admin UI and stored back into .env via the integrations page.
-    google_client_id: str = ""
-    google_client_secret: str = ""
-    google_refresh_token: str = ""
+    # Google Search Console via Service Account. Path to the JSON key the
+    # user downloads from GCP IAM -> Service Accounts -> Keys. Mounted
+    # read-only into the admin + worker containers; empty string disables
+    # the integration cleanly.
+    google_credentials_path: str = "/run/secrets/google-sa.json"
 
 
 @lru_cache

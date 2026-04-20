@@ -29,6 +29,8 @@ services:
     container_name: threelayerseo-admin
     restart: unless-stopped
     env_file: .env
+    volumes:
+      - ./secrets:/run/secrets:ro
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips=*
     depends_on:
       db: {condition: service_healthy}
@@ -40,6 +42,8 @@ services:
     container_name: threelayerseo-renderer
     restart: unless-stopped
     env_file: .env
+    volumes:
+      - ./secrets:/run/secrets:ro
     command: uvicorn app.renderer:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips=*
     depends_on:
       db: {condition: service_healthy}
@@ -50,6 +54,8 @@ services:
     container_name: threelayerseo-worker
     restart: unless-stopped
     env_file: .env
+    volumes:
+      - ./secrets:/run/secrets:ro
     command: python -m app.worker
     depends_on:
       db: {condition: service_healthy}

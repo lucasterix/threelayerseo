@@ -1,11 +1,9 @@
 """Domain purchase job.
 
 Registers the domain at INWX, stores the registrar response, sets A records
-for apex + www pointing at the server IP, and creates a draft Site row.
-
-No Caddy config touch required — the catchall site block with on-demand TLS
-handles any hostname whose ACTIVE status in our DB the renderer's
-/_/caddy-ask endpoint confirms.
+for apex + www, creates a draft Site row, and — if GSC is configured —
+auto-onboards the domain into Search Console (DNS TXT verification +
+sitemap submit).
 """
 from __future__ import annotations
 
@@ -50,13 +48,11 @@ async def _register(domain_id: int) -> None:
                     log.warning("could not parse exDate %s", result.expires_at)
             domain.registered_at = datetime.now(timezone.utc)
 
-            # DNS: apex + www. The INWX default zone may already contain
-            # a few records from registration, so these calls are best-effort.
             try:
                 inwx.set_a_record(domain.name, domain.name, settings.server_ip)
                 inwx.set_a_record(domain.name, f"www.{domain.name}", settings.server_ip)
             except Exception:  # noqa: BLE001
-                log.warning("DNS setup partial for %s", domain.name, exc_info=True)
+                log.warning("DNS A-record setup partial for %s", domain.name, exc_info=True)
 
             site = Site(
                 domain_id=domain.id,
@@ -66,6 +62,23 @@ async def _register(domain_id: int) -> None:
             )
             session.add(site)
             domain.status = DomainStatus.ACTIVE
+            meta = dict(domain.meta or {})
+
+            # Google Search Console onboarding. Skipped cleanly if not configured.
+            try:
+                from app.services.gsc import is_configured, onboard_domain_in_gsc
+
+                if is_configured():
+                    gsc_result = onboard_domain_in_gsc(
+                        domain.name,
+                        lambda d, host, value: inwx.set_txt_record(d, host, value),
+                    )
+                    meta["gsc"] = gsc_result
+                    log.info("GSC onboarding for %s: %s", domain.name, gsc_result)
+            except Exception:  # noqa: BLE001
+                log.warning("GSC onboarding failed for %s", domain.name, exc_info=True)
+
+            domain.meta = meta
             await session.commit()
             log.info("registered %s tier=%s", domain.name, domain.tier.name)
         except Exception as e:  # noqa: BLE001
@@ -76,5 +89,4 @@ async def _register(domain_id: int) -> None:
 
 
 def register_domain_job(domain_id: int) -> None:
-    """RQ entry-point. Sync wrapper around the async impl."""
     asyncio.run(_register(domain_id))

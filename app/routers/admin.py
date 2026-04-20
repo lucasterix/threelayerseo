@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from slugify import slugify
@@ -407,61 +407,23 @@ async def keywords_search(
     )
 
 
-# ─── Integrations (Google Search Console) ──────────────────────────────────
+# ─── Integrations ──────────────────────────────────────────────────────────
 
 @router.get("/integrations", response_class=HTMLResponse)
 async def integrations(
     request: Request,
     _: str = Depends(require_admin),
 ):
+    from app.services.gsc import is_configured as gsc_configured, service_account_email
+
     return templates.TemplateResponse(
         "admin/integrations.html",
         {
             "request": request,
             "indexnow_key": settings.indexnow_key,
-            "gsc_client_set": bool(settings.google_client_id and settings.google_client_secret),
-            "gsc_connected": bool(settings.google_refresh_token),
+            "gsc_configured": gsc_configured(),
+            "gsc_sa_email": service_account_email(),
+            "gsc_key_path": settings.google_credentials_path,
             "dataforseo_set": bool(settings.dataforseo_login and settings.dataforseo_password),
-        },
-    )
-
-
-@router.get("/integrations/gsc/connect")
-async def gsc_connect(request: Request, _: str = Depends(require_admin)):
-    from app.services.gsc import GscError, build_auth_url
-
-    redirect_uri = f"https://{settings.admin_host}/integrations/gsc/callback"
-    try:
-        url = build_auth_url(redirect_uri, state="admin")
-    except GscError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    return RedirectResponse(url=url)
-
-
-@router.get("/integrations/gsc/callback", response_class=HTMLResponse)
-async def gsc_callback(
-    request: Request,
-    code: str = Query(""),
-    error: str = Query(""),
-    _: str = Depends(require_admin),
-):
-    from app.services.gsc import exchange_code
-
-    if error:
-        return HTMLResponse(f"<pre>OAuth error: {error}</pre>", status_code=400)
-    if not code:
-        return HTMLResponse("<pre>missing code</pre>", status_code=400)
-    redirect_uri = f"https://{settings.admin_host}/integrations/gsc/callback"
-    try:
-        tokens = exchange_code(code, redirect_uri)
-    except Exception as e:  # noqa: BLE001
-        return HTMLResponse(f"<pre>token exchange failed: {e}</pre>", status_code=502)
-    refresh = tokens.get("refresh_token")
-    return templates.TemplateResponse(
-        "admin/integrations_gsc_done.html",
-        {
-            "request": request,
-            "tokens": tokens,
-            "refresh_token": refresh,
         },
     )

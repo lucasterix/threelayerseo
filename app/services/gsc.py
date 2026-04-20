@@ -1,148 +1,87 @@
-"""Google Search Console integration.
+"""Google Search Console + Site Verification via a service account.
 
-The only reliable way to ask Google to crawl our sites programmatically.
-Flow:
+No OAuth dance. The admin creates one GCP project, one service account,
+downloads the JSON key, and scps it onto the host. The SA email is added
+as owner to every GSC property we manage — but since we also run the
+verification flow programmatically (DNS TXT via INWX), the SA can claim
+new domains without the user clicking through GSC.
 
-1. User creates a Google Cloud project, enables Search Console API, makes
-   an OAuth client (Web application) with redirect URI
-   https://seo.zdkg.de/integrations/gsc/callback — puts
-   GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET in .env.
-2. Admin clicks "Connect Search Console" -> this module's build_auth_url
-   redirects to Google -> callback handler exchanges the code for a
-   refresh token -> operator pastes it into .env as GOOGLE_REFRESH_TOKEN.
-3. Per-site verification (TXT record via INWX) + sitemap submission happen
-   from the worker on site activation.
-
-For domains to be usable: each domain needs a verified GSC property. This
-module provides the API calls — verification itself is one-time per domain
-(DNS TXT record) and runs right after registrar setup.
+This beats OAuth for our use-case: service-account credentials never
+expire, `webmasters` is a sensitive scope that would otherwise need
+Google verification or a 7-day testing-mode lifetime on refresh tokens.
 """
 from __future__ import annotations
 
 import logging
+import os
 from typing import Any
-from urllib.parse import urlencode
+from urllib.parse import quote
 
 import httpx
+
+try:
+    from google.auth.transport.requests import Request as GoogleAuthRequest
+    from google.oauth2 import service_account
+except ImportError:  # pragma: no cover
+    service_account = None  # type: ignore
+    GoogleAuthRequest = None  # type: ignore
 
 from app.config import settings
 
 log = logging.getLogger(__name__)
 
-AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
-TOKEN_URL = "https://oauth2.googleapis.com/token"
-SCOPE = "https://www.googleapis.com/auth/webmasters"
+SCOPES = [
+    "https://www.googleapis.com/auth/webmasters",
+    "https://www.googleapis.com/auth/siteverification",
+]
 
 
 class GscError(RuntimeError):
     pass
 
 
-def build_auth_url(redirect_uri: str, state: str = "") -> str:
-    if not settings.google_client_id:
-        raise GscError("GOOGLE_CLIENT_ID not set")
-    params = {
-        "client_id": settings.google_client_id,
-        "redirect_uri": redirect_uri,
-        "response_type": "code",
-        "scope": SCOPE,
-        "access_type": "offline",
-        "prompt": "consent",
-        "state": state,
-    }
-    return f"{AUTH_URL}?{urlencode(params)}"
+def _credentials():
+    if service_account is None:
+        raise GscError("google-auth not installed")
+    path = settings.google_credentials_path
+    if not path or not os.path.exists(path):
+        raise GscError(f"google SA key not found at {path}")
+    return service_account.Credentials.from_service_account_file(path, scopes=SCOPES)
 
 
-def exchange_code(code: str, redirect_uri: str) -> dict[str, Any]:
-    """Trade the authorization code for tokens. Returns the Google
-    response body — the caller decides whether to persist the refresh
-    token to .env.
-    """
-    if not (settings.google_client_id and settings.google_client_secret):
-        raise GscError("GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET not set")
-    r = httpx.post(
-        TOKEN_URL,
-        data={
-            "code": code,
-            "client_id": settings.google_client_id,
-            "client_secret": settings.google_client_secret,
-            "redirect_uri": redirect_uri,
-            "grant_type": "authorization_code",
-        },
-        timeout=20,
-    )
-    r.raise_for_status()
-    return r.json()
+def service_account_email() -> str | None:
+    try:
+        return _credentials().service_account_email
+    except GscError:
+        return None
 
 
 def _access_token() -> str:
-    if not settings.google_refresh_token:
-        raise GscError("GOOGLE_REFRESH_TOKEN not set")
-    r = httpx.post(
-        TOKEN_URL,
-        data={
-            "refresh_token": settings.google_refresh_token,
-            "client_id": settings.google_client_id,
-            "client_secret": settings.google_client_secret,
-            "grant_type": "refresh_token",
-        },
-        timeout=20,
+    creds = _credentials()
+    creds.refresh(GoogleAuthRequest())
+    return creds.token
+
+
+def is_configured() -> bool:
+    return bool(
+        settings.google_credentials_path
+        and os.path.exists(settings.google_credentials_path)
+        and service_account is not None
     )
-    r.raise_for_status()
-    return r.json()["access_token"]
 
 
-def submit_sitemap(site_url: str, sitemap_url: str) -> bool:
-    """Submit/update a sitemap for an already-verified GSC property.
+# ─── Site Verification ─────────────────────────────────────────────────────
 
-    ``site_url`` is the exact property URL as registered in GSC, e.g.
-    ``https://example.de/``. Returns True on 200/204.
+def dns_verification_token(domain: str) -> str | None:
+    """Return Google's DNS TXT verification string for ``domain``.
+
+    Google returns a token like ``google-site-verification=ABC...`` — that
+    full string goes as the value of a TXT record at the apex.
     """
     try:
         token = _access_token()
     except GscError as e:
-        log.warning("GSC sitemap submit skipped: %s", e)
-        return False
-    headers = {"Authorization": f"Bearer {token}"}
-    from urllib.parse import quote
-
-    url = (
-        f"https://searchconsole.googleapis.com/webmasters/v3/sites/"
-        f"{quote(site_url, safe='')}/sitemaps/{quote(sitemap_url, safe='')}"
-    )
-    r = httpx.put(url, headers=headers, timeout=20)
-    if r.status_code in (200, 204):
-        log.info("sitemap %s submitted for %s", sitemap_url, site_url)
-        return True
-    log.warning("GSC submit failed %s: %s", r.status_code, r.text[:200])
-    return False
-
-
-def add_site_property(site_url: str) -> bool:
-    """Add a new site to Search Console. After this, the property shows
-    up in GSC as UNVERIFIED — use ``verify_by_dns`` to finalize.
-    """
-    try:
-        token = _access_token()
-    except GscError:
-        return False
-    from urllib.parse import quote
-
-    url = f"https://searchconsole.googleapis.com/webmasters/v3/sites/{quote(site_url, safe='')}"
-    r = httpx.put(url, headers={"Authorization": f"Bearer {token}"}, timeout=20)
-    return r.status_code in (200, 204)
-
-
-def dns_verification_token(domain: str) -> str | None:
-    """Fetch the DNS TXT verification string Google wants added to the zone.
-
-    Google's Site Verification API returns the token we write as TXT; the
-    admin then triggers INWX to create the record. This is a distinct API
-    (``siteverification``) from Search Console.
-    """
-    try:
-        token = _access_token()
-    except GscError:
+        log.warning("GSC token fetch skipped: %s", e)
         return None
     r = httpx.post(
         "https://www.googleapis.com/siteVerification/v1/token",
@@ -154,6 +93,93 @@ def dns_verification_token(domain: str) -> str | None:
         timeout=20,
     )
     if r.status_code != 200:
-        log.warning("GSC verification token failed %s: %s", r.status_code, r.text[:200])
+        log.warning("verification token request failed %s: %s", r.status_code, r.text[:200])
         return None
     return r.json().get("token")
+
+
+def verify_domain(domain: str) -> bool:
+    """Ask Google to check the TXT record for ``domain`` and claim
+    ownership by the service account.
+    """
+    try:
+        token = _access_token()
+    except GscError:
+        return False
+    r = httpx.post(
+        "https://www.googleapis.com/siteVerification/v1/webResource",
+        headers={"Authorization": f"Bearer {token}"},
+        params={"verificationMethod": "DNS_TXT"},
+        json={
+            "site": {"type": "INET_DOMAIN", "identifier": domain},
+            "verificationMethod": "DNS_TXT",
+        },
+        timeout=30,
+    )
+    if r.status_code in (200, 201):
+        log.info("GSC verified %s", domain)
+        return True
+    log.warning("GSC verify failed for %s: %s %s", domain, r.status_code, r.text[:300])
+    return False
+
+
+# ─── Search Console ────────────────────────────────────────────────────────
+
+def add_site_property(site_url: str) -> bool:
+    """Register a site in Search Console. ``site_url`` needs the trailing
+    slash: ``https://example.de/``.
+    """
+    try:
+        token = _access_token()
+    except GscError:
+        return False
+    url = f"https://searchconsole.googleapis.com/webmasters/v3/sites/{quote(site_url, safe='')}"
+    r = httpx.put(url, headers={"Authorization": f"Bearer {token}"}, timeout=20)
+    if r.status_code in (200, 204):
+        log.info("added GSC site %s", site_url)
+        return True
+    log.warning("GSC add-site failed %s: %s %s", site_url, r.status_code, r.text[:200])
+    return False
+
+
+def submit_sitemap(site_url: str, sitemap_url: str) -> bool:
+    try:
+        token = _access_token()
+    except GscError as e:
+        log.debug("GSC sitemap submit skipped: %s", e)
+        return False
+    url = (
+        f"https://searchconsole.googleapis.com/webmasters/v3/sites/"
+        f"{quote(site_url, safe='')}/sitemaps/{quote(sitemap_url, safe='')}"
+    )
+    r = httpx.put(url, headers={"Authorization": f"Bearer {token}"}, timeout=20)
+    if r.status_code in (200, 204):
+        log.info("sitemap %s submitted for %s", sitemap_url, site_url)
+        return True
+    log.warning("GSC sitemap submit failed %s: %s %s", site_url, r.status_code, r.text[:200])
+    return False
+
+
+# ─── Convenience ────────────────────────────────────────────────────────────
+
+def onboard_domain_in_gsc(domain: str, inwx_set_txt) -> dict[str, Any]:
+    """End-to-end: fetch token -> add DNS TXT via INWX -> verify -> add
+    site property -> submit sitemap.
+
+    ``inwx_set_txt(domain, name, value)`` is a callable. We call it with
+    ``name=domain`` (apex) and ``value=google-site-verification=...``.
+
+    Returns a dict summarising each step's outcome for logging.
+    """
+    out: dict[str, Any] = {"domain": domain}
+    token = dns_verification_token(domain)
+    out["token_fetched"] = bool(token)
+    if not token:
+        return out
+    out["dns_txt_set"] = bool(inwx_set_txt(domain, domain, token))
+    out["verified"] = verify_domain(domain)
+    if out["verified"]:
+        site_url = f"https://{domain}/"
+        out["site_added"] = add_site_property(site_url)
+        out["sitemap_submitted"] = submit_sitemap(site_url, f"https://{domain}/sitemap.xml")
+    return out

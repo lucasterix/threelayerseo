@@ -19,3 +19,4 @@ python-slugify==8.0.4
 markdown==3.7
 beautifulsoup4==4.12.3
 python-frontmatter==1.1.0
+google-auth==2.37.0

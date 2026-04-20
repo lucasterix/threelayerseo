@@ -122,3 +122,18 @@ class InwxRegistrar:
                 },
             )
         return res.get("code") == 1000
+
+    def set_txt_record(self, domain: str, hostname: str, value: str) -> bool:
+        """Add a TXT record (e.g. Google Site Verification)."""
+        with self._session() as c:
+            res = c.call_api(
+                api_method="nameserver.createRecord",
+                method_params={
+                    "domain": domain,
+                    "type": "TXT",
+                    "name": hostname,
+                    "content": value,
+                    "ttl": 300,
+                },
+            )
+        return res.get("code") == 1000
