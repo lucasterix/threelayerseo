@@ -1,0 +1,70 @@
+{% set avail = results|selectattr('available')|list %}
+{% set taken = results|rejectattr('available')|list %}
+
+<div class="bg-white rounded-lg shadow overflow-hidden">
+  <div class="px-4 py-3 border-b text-sm flex items-center gap-4">
+    <span>{{ avail|length }} verfügbar</span>
+    <span class="text-slate-500">{{ taken|length }} vergeben</span>
+    {% if avail %}
+    <button
+      type="submit"
+      form="buy-form"
+      class="ml-auto bg-emerald-600 text-white px-4 py-1.5 rounded text-sm hover:bg-emerald-700"
+    >
+      Ausgewählte kaufen
+    </button>
+    {% endif %}
+  </div>
+
+  {% if avail %}
+  <form id="buy-form" method="post" action="/domains/buy">
+    <table class="w-full text-sm">
+      <thead class="bg-slate-100 text-slate-600 uppercase text-xs tracking-wide">
+        <tr>
+          <th class="px-3 py-2 w-8">
+            <input
+              type="checkbox"
+              onchange="document.querySelectorAll('input[name=selected]').forEach(e=>e.checked=this.checked)"
+            >
+          </th>
+          <th class="text-left px-3 py-2">Domain</th>
+          <th class="text-left px-3 py-2">Preis</th>
+          <th class="text-left px-3 py-2">Tier</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in avail %}
+        <tr class="border-t border-slate-100">
+          <td class="px-3 py-2">
+            <input type="checkbox" name="selected" value="{{ r.name }}" checked>
+          </td>
+          <td class="px-3 py-2 font-mono">{{ r.name }}</td>
+          <td class="px-3 py-2">
+            {% if r.price_cents %}{{ '%.2f'|format(r.price_cents/100) }} {{ r.currency }}{% else %}—{% endif %}
+            <input type="hidden" name="price[{{ r.name }}]" value="{{ r.price_cents or '' }}">
+          </td>
+          <td class="px-3 py-2">
+            <select name="tier[{{ r.name }}]" class="border rounded px-2 py-1 text-sm">
+              {% for val, label in tier_choices %}
+              <option value="{{ val }}" {% if val == 1 %}selected{% endif %}>{{ val }} – {{ label }}</option>
+              {% endfor %}
+            </select>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </form>
+  {% endif %}
+
+  {% if taken %}
+  <details class="border-t border-slate-100">
+    <summary class="px-4 py-2 text-sm text-slate-500 cursor-pointer">
+      {{ taken|length }} vergebene Domains anzeigen
+    </summary>
+    <ul class="px-4 py-2 text-sm text-slate-600 font-mono space-y-0.5">
+      {% for r in taken %}<li>{{ r.name }} <span class="text-slate-400 text-xs">{{ r.reason or '' }}</span></li>{% endfor %}
+    </ul>
+  </details>
+  {% endif %}
+</div>

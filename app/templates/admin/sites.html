@@ -1,0 +1,41 @@
+{% extends "admin/base.html" %}
+{% block title %}Sites · ThreeLayerSEO{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-semibold mb-6">Sites</h1>
+
+<div class="bg-white rounded-lg shadow overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-slate-100 text-slate-600 uppercase text-xs tracking-wide">
+      <tr>
+        <th class="text-left px-4 py-2">Domain</th>
+        <th class="text-left px-4 py-2">Titel</th>
+        <th class="text-left px-4 py-2">Tier</th>
+        <th class="text-left px-4 py-2">Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in sites %}
+      <tr class="border-t border-slate-100">
+        <td class="px-4 py-2 font-mono">
+          <a href="/sites/{{ s.id }}" class="text-sky-700 hover:underline">{{ s.domain.name }}</a>
+        </td>
+        <td class="px-4 py-2">{{ s.title }}</td>
+        <td class="px-4 py-2">{{ s.domain.tier.value }} – {{ s.domain.tier.name }}</td>
+        <td class="px-4 py-2">
+          <span class="inline-block text-xs px-2 py-0.5 rounded
+            {% if s.status.value == 'live' %}bg-emerald-100 text-emerald-800
+            {% elif s.status.value == 'building' %}bg-sky-100 text-sky-800
+            {% else %}bg-slate-100 text-slate-700{% endif %}">
+            {{ s.status.value }}
+          </span>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4" class="px-4 py-8 text-center text-slate-500">
+        Noch keine Sites. Sie werden nach erfolgreichem Domain-Kauf automatisch als Draft angelegt.
+      </td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

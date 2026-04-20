@@ -1,0 +1,119 @@
+{% extends "admin/base.html" %}
+{% block title %}{{ site.domain.name }} · ThreeLayerSEO{% endblock %}
+{% block content %}
+
+<div class="flex items-center justify-between mb-6">
+  <div>
+    <h1 class="text-2xl font-semibold font-mono">{{ site.domain.name }}</h1>
+    <p class="text-sm text-slate-500 mt-1">
+      Tier {{ site.domain.tier.value }} – {{ site.domain.tier.name }} · Status
+      <span class="inline-block text-xs px-2 py-0.5 rounded
+        {% if site.status.value == 'live' %}bg-emerald-100 text-emerald-800
+        {% else %}bg-slate-100 text-slate-700{% endif %}">{{ site.status.value }}</span>
+    </p>
+  </div>
+  <a href="https://{{ site.domain.name }}" target="_blank"
+     class="text-sky-700 hover:underline text-sm">Live öffnen →</a>
+</div>
+
+<div class="grid md:grid-cols-2 gap-6">
+
+  <section class="bg-white rounded-lg shadow p-5">
+    <h2 class="font-semibold mb-3">Site-Einstellungen</h2>
+    <form method="post" action="/sites/{{ site.id }}/update" class="space-y-3 text-sm">
+      <label class="block">
+        <span class="text-slate-600">Titel</span>
+        <input name="title" value="{{ site.title }}" class="mt-1 w-full border rounded px-2 py-1">
+      </label>
+      <label class="block">
+        <span class="text-slate-600">Topic / Nische</span>
+        <textarea name="topic" rows="2" class="mt-1 w-full border rounded px-2 py-1">{{ site.topic }}</textarea>
+      </label>
+      <label class="block">
+        <span class="text-slate-600">Sprache</span>
+        <input name="language" value="{{ site.language }}" class="mt-1 w-full border rounded px-2 py-1">
+      </label>
+      <label class="block">
+        <span class="text-slate-600">Status</span>
+        <select name="status" class="mt-1 w-full border rounded px-2 py-1">
+          {% for s in ['draft','building','live','disabled'] %}
+          <option value="{{ s }}" {% if s == site.status.value %}selected{% endif %}>{{ s }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <button class="bg-slate-900 text-white px-3 py-1.5 rounded text-sm">Speichern</button>
+    </form>
+  </section>
+
+  <section class="bg-white rounded-lg shadow p-5">
+    <h2 class="font-semibold mb-3">Neuen Post generieren</h2>
+    <form method="post" action="/sites/{{ site.id }}/posts" class="space-y-3 text-sm">
+      <label class="block">
+        <span class="text-slate-600">Thema (wird der Research-Query)</span>
+        <input name="topic" placeholder="Was macht ein Hundefutter besonders gut?"
+               class="mt-1 w-full border rounded px-2 py-1" required>
+      </label>
+      <label class="block">
+        <span class="text-slate-600">Primäres Keyword</span>
+        <input name="primary_keyword" placeholder="hundefutter test"
+               class="mt-1 w-full border rounded px-2 py-1" required>
+      </label>
+      <button class="bg-emerald-600 text-white px-3 py-1.5 rounded text-sm hover:bg-emerald-700">
+        Research → Write queuen
+      </button>
+      <p class="text-xs text-slate-500">
+        Der Worker durchläuft OpenAI Deep-Research → Claude-Writer → Backlink-Resolver.
+        Dauert typischerweise 1-3 Minuten.
+      </p>
+    </form>
+  </section>
+
+</div>
+
+<section class="mt-6 bg-white rounded-lg shadow overflow-hidden">
+  <div class="px-4 py-3 border-b flex items-center justify-between">
+    <h2 class="font-semibold">Posts ({{ posts|length }})</h2>
+  </div>
+  <table class="w-full text-sm">
+    <thead class="bg-slate-50 text-slate-600 uppercase text-xs tracking-wide">
+      <tr>
+        <th class="text-left px-4 py-2">Titel / Slug</th>
+        <th class="text-left px-4 py-2">Keyword</th>
+        <th class="text-left px-4 py-2">Status</th>
+        <th class="text-left px-4 py-2">Aktion</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in posts %}
+      <tr class="border-t border-slate-100">
+        <td class="px-4 py-2">
+          <a href="/posts/{{ p.id }}" class="text-sky-700 hover:underline">{{ p.title }}</a>
+          <div class="text-xs text-slate-500 font-mono">/{{ p.slug }}</div>
+        </td>
+        <td class="px-4 py-2">{{ p.primary_keyword }}</td>
+        <td class="px-4 py-2">
+          <span class="inline-block text-xs px-2 py-0.5 rounded
+            {% if p.status.value == 'published' %}bg-emerald-100 text-emerald-800
+            {% elif p.status.value == 'ready' %}bg-sky-100 text-sky-800
+            {% elif p.status.value == 'failed' %}bg-red-100 text-red-800
+            {% else %}bg-slate-100 text-slate-700{% endif %}">
+            {{ p.status.value }}
+          </span>
+        </td>
+        <td class="px-4 py-2">
+          {% if p.status.value in ('ready', 'failed') %}
+          <form method="post" action="/posts/{{ p.id }}/publish" class="inline">
+            <button class="text-emerald-700 hover:underline text-xs">publish</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4" class="px-4 py-8 text-center text-slate-500">
+        Noch keine Posts.
+      </td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

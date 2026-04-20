@@ -1,7 +1,0 @@
-# Caddy site block for the ThreeLayerSEO admin UI.
-# Drop this file into the shared Caddyfile include dir on the host.
-
-seo.zdkg.de {
-    import security-headers
-    reverse_proxy threelayerseo-admin:8000
-}

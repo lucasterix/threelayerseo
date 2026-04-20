@@ -3,7 +3,7 @@
 {% block content %}
 <div class="flex items-center justify-between mb-6">
   <h1 class="text-2xl font-semibold">Domains</h1>
-  <button class="bg-slate-900 text-white px-4 py-2 rounded-md text-sm">Domain(s) kaufen</button>
+  <a href="/domains/search" class="bg-slate-900 text-white px-4 py-2 rounded-md text-sm">Domain(s) kaufen</a>
 </div>
 
 <div class="bg-white rounded-lg shadow overflow-hidden">
@@ -15,19 +15,34 @@
         <th class="text-left px-4 py-2">Status</th>
         <th class="text-left px-4 py-2">Läuft ab</th>
         <th class="text-left px-4 py-2">Preis</th>
+        <th class="text-left px-4 py-2">Site</th>
       </tr>
     </thead>
     <tbody>
       {% for d in domains %}
       <tr class="border-t border-slate-100">
-        <td class="px-4 py-2 font-mono">{{ d.name }}</td>
-        <td class="px-4 py-2">{{ d.tier.name }}</td>
-        <td class="px-4 py-2">{{ d.status.value }}</td>
+        <td class="px-4 py-2 font-mono"><a href="https://{{ d.name }}" class="text-sky-700 hover:underline" target="_blank">{{ d.name }}</a></td>
+        <td class="px-4 py-2">{{ d.tier.value }} – {{ d.tier.name }}</td>
+        <td class="px-4 py-2">
+          <span class="inline-block text-xs px-2 py-0.5 rounded
+            {% if d.status.value == 'active' %}bg-emerald-100 text-emerald-800
+            {% elif d.status.value == 'failed' %}bg-red-100 text-red-800
+            {% elif d.status.value == 'pending' %}bg-amber-100 text-amber-800
+            {% elif d.status.value == 'purchasing' %}bg-sky-100 text-sky-800
+            {% else %}bg-slate-100 text-slate-700{% endif %}">
+            {{ d.status.value }}
+          </span>
+        </td>
         <td class="px-4 py-2">{{ d.expires_at.strftime('%Y-%m-%d') if d.expires_at else '—' }}</td>
         <td class="px-4 py-2">{{ '%.2f'|format(d.price_cents/100) ~ ' ' ~ d.currency if d.price_cents else '—' }}</td>
+        <td class="px-4 py-2">
+          {% if d.site %}<a href="/sites/{{ d.site.id }}" class="text-sky-700 hover:underline">→</a>{% else %}—{% endif %}
+        </td>
       </tr>
       {% else %}
-      <tr><td colspan="5" class="px-4 py-8 text-center text-slate-500">Noch keine Domains.</td></tr>
+      <tr><td colspan="6" class="px-4 py-8 text-center text-slate-500">
+        Noch keine Domains. <a href="/domains/search" class="text-sky-700 hover:underline">Jetzt welche kaufen →</a>
+      </td></tr>
       {% endfor %}
     </tbody>
   </table>

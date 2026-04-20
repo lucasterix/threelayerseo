@@ -1,5 +1,6 @@
 from rq import Worker
 
+from app import jobs  # noqa: F401 — imports register job modules
 from app.queue import content_q, domains_q, publish_q, redis_conn
 
 

@@ -26,6 +26,16 @@ class Settings(BaseSettings):
     admin_host: str = "seo.zdkg.de"
     renderer_default_host: str = ""
 
+    # IP address blog domains resolve to. Used when configuring INWX DNS after
+    # a purchase. Override with SERVER_IP in .env if the renderer moves.
+    server_ip: str = "46.224.7.46"
+
+    # IndexNow key (hex string). Must be reachable at
+    # https://<domain>/<key>.txt for every site — the renderer serves this
+    # automatically. Generate once with: python -c "import secrets;
+    # print(secrets.token_hex(16))".
+    indexnow_key: str = ""
+
 
 @lru_cache
 def get_settings() -> Settings:

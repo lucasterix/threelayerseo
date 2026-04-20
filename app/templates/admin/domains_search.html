@@ -1,0 +1,52 @@
+{% extends "admin/base.html" %}
+{% block title %}Domains kaufen · ThreeLayerSEO{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-semibold mb-6">Domain-Verfügbarkeit prüfen</h1>
+
+<form
+  class="bg-white rounded-lg shadow p-6 space-y-4"
+  hx-post="/domains/search"
+  hx-target="#results"
+  hx-indicator="#busy"
+>
+  <div>
+    <label class="block text-sm font-medium mb-1">Namen (einer pro Zeile)</label>
+    <p class="text-xs text-slate-500 mb-2">
+      Entweder nur der Name (z.B. <code>hundefutter-tipps</code>) — wird dann
+      mit den ausgewählten TLDs kombiniert — oder bereits vollständig
+      (z.B. <code>hundefutter-tipps.de</code>). Max 300 Kandidaten.
+    </p>
+    <textarea
+      name="names"
+      rows="10"
+      class="w-full font-mono text-sm border rounded px-3 py-2 focus:ring-2 focus:ring-slate-500"
+      placeholder="hundefutter-tipps&#10;katzenbetten-online&#10;beste-wanderschuhe.de"
+      required
+    ></textarea>
+  </div>
+
+  <div>
+    <label class="block text-sm font-medium mb-1">TLDs (nur für Namen ohne Punkt)</label>
+    <div class="flex flex-wrap gap-3">
+      {% for tld in default_tlds %}
+      <label class="inline-flex items-center gap-1 text-sm">
+        <input type="checkbox" name="tlds" value="{{ tld }}" {% if tld in ('de','com') %}checked{% endif %}>
+        .{{ tld }}
+      </label>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="flex items-center gap-3">
+    <button
+      type="submit"
+      class="bg-slate-900 text-white px-4 py-2 rounded text-sm hover:bg-slate-800"
+    >
+      Verfügbarkeit prüfen
+    </button>
+    <span id="busy" class="htmx-indicator text-sm text-slate-500">prüfe bei INWX …</span>
+  </div>
+</form>
+
+<div id="results" class="mt-6"></div>
+{% endblock %}

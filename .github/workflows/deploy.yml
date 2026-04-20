@@ -67,7 +67,8 @@ jobs:
           ssh deploy@46.224.7.46 'mkdir -p ~/apps/threelayerseo ~/infra/caddy/conf.d'
           scp deploy/docker-compose.prod.yml deploy@46.224.7.46:~/apps/threelayerseo/docker-compose.yml
           scp deploy/scripts/deploy.sh       deploy@46.224.7.46:~/apps/threelayerseo/deploy.sh
-          scp deploy/nginx/seo.zdkg.de.caddy deploy@46.224.7.46:~/infra/caddy/conf.d/seo.zdkg.de.caddy
+          ssh deploy@46.224.7.46 'rm -f ~/infra/caddy/conf.d/seo.zdkg.de.caddy'
+          scp deploy/caddy/threelayerseo.caddy deploy@46.224.7.46:~/infra/caddy/conf.d/threelayerseo.caddy
 
       - name: Deploy on host
         env:

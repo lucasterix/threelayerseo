@@ -1,0 +1,25 @@
+# ThreeLayerSEO Caddy site blocks. Dropped into /etc/caddy/conf.d/ on the
+# shared host (mounted from /home/deploy/infra/caddy/conf.d/).
+#
+# The global `on_demand_tls { ask ... }` directive lives in the
+# frohzeitrakete Caddyfile and gates on-demand cert issuance by asking
+# our renderer whether a domain is whitelisted.
+
+# Admin UI
+seo.zdkg.de {
+    import security-headers
+    reverse_proxy threelayerseo-admin:8000
+}
+
+# Catchall for every other HTTPS host pointing at this server. Caddy
+# treats named site blocks (fzr + seo.zdkg.de above) as more specific,
+# so only unknown hostnames fall through here. On-demand TLS means
+# Caddy provisions a cert the first time a real request comes in for
+# a hostname the ask endpoint whitelists (ACTIVE domains in our DB).
+https:// {
+    tls {
+        on_demand
+    }
+    import security-headers
+    reverse_proxy threelayerseo-renderer:8000
+}
