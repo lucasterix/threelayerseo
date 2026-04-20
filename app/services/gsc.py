@@ -164,12 +164,12 @@ def submit_sitemap(site_url: str, sitemap_url: str) -> bool:
 
 def onboard_domain_in_gsc(domain: str, inwx_set_txt) -> dict[str, Any]:
     """End-to-end: fetch token -> add DNS TXT via INWX -> verify -> add
-    site property -> submit sitemap.
+    both a domain property (``sc-domain:example.de``) and a URL-prefix
+    property (``https://example.de/``) -> submit sitemap against the
+    URL-prefix property.
 
-    ``inwx_set_txt(domain, name, value)`` is a callable. We call it with
-    ``name=domain`` (apex) and ``value=google-site-verification=...``.
-
-    Returns a dict summarising each step's outcome for logging.
+    ``inwx_set_txt(domain, name, value)`` is a callable. Returns a dict
+    summarising each step's outcome for logging.
     """
     out: dict[str, Any] = {"domain": domain}
     token = dns_verification_token(domain)
@@ -178,8 +178,11 @@ def onboard_domain_in_gsc(domain: str, inwx_set_txt) -> dict[str, Any]:
         return out
     out["dns_txt_set"] = bool(inwx_set_txt(domain, domain, token))
     out["verified"] = verify_domain(domain)
-    if out["verified"]:
-        site_url = f"https://{domain}/"
-        out["site_added"] = add_site_property(site_url)
-        out["sitemap_submitted"] = submit_sitemap(site_url, f"https://{domain}/sitemap.xml")
+    if not out["verified"]:
+        return out
+    sc_domain = f"sc-domain:{domain}"
+    url_prefix = f"https://{domain}/"
+    out["sc_domain_added"] = add_site_property(sc_domain)
+    out["url_prefix_added"] = add_site_property(url_prefix)
+    out["sitemap_submitted"] = submit_sitemap(url_prefix, f"https://{domain}/sitemap.xml")
     return out
