@@ -1,0 +1,91 @@
+{% extends "admin/base.html" %}
+{% from "admin/_partials.html" import sev_dot, sev_badge, capacity_bar %}
+{% block title %}Server · ThreeLayerSEO{% endblock %}
+{% block content %}
+
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-2xl font-semibold">Server-Inventar</h1>
+  <a href="/servers/new" class="bg-slate-900 text-white px-4 py-2 rounded-md text-sm">+ Server anlegen</a>
+</div>
+
+<div class="bg-white rounded-lg shadow p-5 mb-6">
+  <div class="flex items-center justify-between">
+    <div>
+      <div class="text-xs uppercase tracking-wide text-slate-500 flex items-center gap-2">
+        {{ sev_dot(fleet.severity) }} Gesamtauslastung
+      </div>
+      <div class="text-3xl font-semibold mt-1">{{ fleet.total_used }}<span class="text-slate-400 text-lg"> / {{ fleet.total_limit }}</span></div>
+      <div class="text-xs text-slate-500 mt-0.5">Headroom: {{ fleet.headroom }} Sites</div>
+    </div>
+    <div class="flex-1 ml-8">
+      {{ capacity_bar(fleet.total_pct, fleet.severity) }}
+      <div class="text-xs text-slate-500 mt-1">{{ (fleet.total_pct * 100) | round(0, 'floor') | int }} %</div>
+    </div>
+  </div>
+  {% if fleet.needs_new_server %}
+  <div class="mt-4 p-3 bg-red-50 border border-red-200 rounded text-sm text-red-800">
+    Auslastung ≥ 85 %. <strong>Plane einen neuen Server</strong>, bevor der nächste Domain-Bulk landet.
+  </div>
+  {% endif %}
+</div>
+
+<div class="bg-white rounded-lg shadow overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-slate-100 text-slate-600 uppercase text-xs tracking-wide">
+      <tr>
+        <th class="text-left px-4 py-2">Hostname</th>
+        <th class="text-left px-4 py-2">IP</th>
+        <th class="text-left px-4 py-2">Location</th>
+        <th class="text-left px-4 py-2">Typ</th>
+        <th class="text-left px-4 py-2 w-40">Auslastung</th>
+        <th class="text-left px-4 py-2">Kosten/Mt</th>
+        <th class="text-left px-4 py-2">Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in fleet.servers %}
+      <tr class="border-t border-slate-100">
+        <td class="px-4 py-2 font-mono text-xs">{{ c.server.hostname }}</td>
+        <td class="px-4 py-2 font-mono text-xs">{{ c.server.ip }}</td>
+        <td class="px-4 py-2">{{ c.server.location or '—' }}</td>
+        <td class="px-4 py-2">{{ c.server.server_type or '—' }}</td>
+        <td class="px-4 py-2">
+          <div class="flex items-center gap-2">
+            <div class="flex-1">{{ capacity_bar(c.pct, 'red' if c.pct >= 0.9 else ('yellow' if c.pct >= 0.7 else 'green')) }}</div>
+            <span class="text-xs text-slate-500 w-14 text-right">{{ c.used }}/{{ c.limit }}</span>
+          </div>
+        </td>
+        <td class="px-4 py-2">{{ '%.2f €'|format(c.server.monthly_cost_cents/100) if c.server.monthly_cost_cents else '—' }}</td>
+        <td class="px-4 py-2">{{ sev_badge('green', c.server.status.value) }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7" class="px-4 py-8 text-center text-slate-500">
+        Keine aktiven Server. <a href="/servers/new" class="text-sky-700 hover:underline">Ersten anlegen →</a>
+      </td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% set extras = all_servers | rejectattr('status.value','equalto','active') | list %}
+{% if extras %}
+<div class="mt-6 bg-white rounded-lg shadow p-5">
+  <h2 class="font-semibold text-sm mb-2">Nicht-aktive Server ({{ extras|length }})</h2>
+  <ul class="text-sm divide-y">
+    {% for s in extras %}
+    <li class="py-2 flex items-center justify-between">
+      <span class="font-mono text-xs">{{ s.hostname }}</span>
+      <span class="font-mono text-xs text-slate-500">{{ s.ip }}</span>
+      {{ sev_badge('gray', s.status.value) }}
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<p class="text-xs text-slate-500 mt-6">
+  Hetzner-Cloud-API (Auto-Provisioning) ist vorbereitet aber noch nicht angebunden — Token in <code>HETZNER_API_TOKEN</code>
+  einsetzen und der "Server anlegen"-Flow kann in Zukunft direkt provisionieren.
+</p>
+
+{% endblock %}

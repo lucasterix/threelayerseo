@@ -1,0 +1,78 @@
+{% extends "admin/base.html" %}
+{% block title %}Server anlegen · ThreeLayerSEO{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-semibold mb-6">Server anlegen</h1>
+
+<form method="post" action="/servers" class="bg-white rounded-lg shadow p-6 space-y-4 max-w-2xl">
+  <div class="grid grid-cols-2 gap-4">
+    <label class="block text-sm">
+      <span class="text-slate-600">Provider</span>
+      <select name="provider" class="mt-1 w-full border rounded px-2 py-1">
+        <option value="hetzner">Hetzner</option>
+        <option value="cloudflare">Cloudflare (Proxy)</option>
+        <option value="external">External</option>
+      </select>
+    </label>
+    <label class="block text-sm">
+      <span class="text-slate-600">Status</span>
+      <select name="status" class="mt-1 w-full border rounded px-2 py-1">
+        {% for s in statuses %}<option value="{{ s }}" {% if s == 'active' %}selected{% endif %}>{{ s }}</option>{% endfor %}
+      </select>
+    </label>
+  </div>
+
+  <label class="block text-sm">
+    <span class="text-slate-600">Hostname / Label</span>
+    <input name="hostname" placeholder="hetzner-fsn1-01" required class="mt-1 w-full border rounded px-2 py-1">
+  </label>
+
+  <div class="grid grid-cols-2 gap-4">
+    <label class="block text-sm">
+      <span class="text-slate-600">IPv4</span>
+      <input name="ip" placeholder="46.224.7.46" required class="mt-1 w-full border rounded px-2 py-1 font-mono">
+    </label>
+    <label class="block text-sm">
+      <span class="text-slate-600">IPv6 (optional)</span>
+      <input name="ipv6" class="mt-1 w-full border rounded px-2 py-1 font-mono">
+    </label>
+  </div>
+
+  <div class="grid grid-cols-3 gap-4">
+    <label class="block text-sm">
+      <span class="text-slate-600">Location</span>
+      <select name="location" class="mt-1 w-full border rounded px-2 py-1">
+        <option value="">—</option>
+        <option value="fsn1">fsn1 (Falkenstein)</option>
+        <option value="nbg1">nbg1 (Nürnberg)</option>
+        <option value="hel1">hel1 (Helsinki)</option>
+        <option value="ash">ash (Ashburn)</option>
+        <option value="hil">hil (Hillsboro)</option>
+        <option value="sin">sin (Singapore)</option>
+      </select>
+    </label>
+    <label class="block text-sm">
+      <span class="text-slate-600">Server-Typ</span>
+      <input name="server_type" placeholder="cx22" class="mt-1 w-full border rounded px-2 py-1">
+    </label>
+    <label class="block text-sm">
+      <span class="text-slate-600">Soft-Limit (Sites)</span>
+      <input name="capacity_limit" type="number" value="25" min="1" class="mt-1 w-full border rounded px-2 py-1">
+    </label>
+  </div>
+
+  <label class="block text-sm">
+    <span class="text-slate-600">Monatskosten (Cent, optional)</span>
+    <input name="monthly_cost_cents" type="number" placeholder="590" class="mt-1 w-full border rounded px-2 py-1">
+  </label>
+
+  <label class="block text-sm">
+    <span class="text-slate-600">Notizen</span>
+    <textarea name="notes" rows="3" class="mt-1 w-full border rounded px-2 py-1"></textarea>
+  </label>
+
+  <div class="flex gap-3">
+    <button class="bg-slate-900 text-white px-4 py-2 rounded text-sm hover:bg-slate-800">Anlegen</button>
+    <a href="/servers" class="text-sm text-slate-600 hover:underline self-center">Abbrechen</a>
+  </div>
+</form>
+{% endblock %}

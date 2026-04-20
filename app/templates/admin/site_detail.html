@@ -1,4 +1,5 @@
 {% extends "admin/base.html" %}
+{% from "admin/_partials.html" import sev_dot, sev_badge, capacity_bar, check_row %}
 {% block title %}{{ site.domain.name }} · ThreeLayerSEO{% endblock %}
 {% block content %}
 
@@ -7,15 +8,62 @@
     <h1 class="text-2xl font-semibold font-mono">{{ site.domain.name }}</h1>
     <p class="text-sm text-slate-500 mt-1">
       Tier {{ site.domain.tier.value }} – {{ site.domain.tier.name }} · Status
-      <span class="inline-block text-xs px-2 py-0.5 rounded
-        {% if site.status.value == 'live' %}bg-emerald-100 text-emerald-800
-        {% elif site.status.value == 'building' %}bg-sky-100 text-sky-800
-        {% else %}bg-slate-100 text-slate-700{% endif %}">{{ site.status.value }}</span>
+      {{ sev_badge(
+        'green' if site.status.value == 'live' else ('yellow' if site.status.value == 'building' else 'gray'),
+        site.status.value
+      ) }}
+      {% if site.server %}
+      · Server: <a href="/servers" class="font-mono text-xs text-sky-700 hover:underline">{{ site.server.hostname }}</a>
+        ({{ site.server.ip }})
+      {% else %}
+      · <span class="text-amber-700 text-xs">kein Server zugeordnet</span>
+      {% endif %}
     </p>
   </div>
   <a href="https://{{ site.domain.name }}" target="_blank"
      class="text-sky-700 hover:underline text-sm">Live öffnen →</a>
 </div>
+
+{# ─── Health checklist ──────────────────────────────────────────────── #}
+<section class="bg-white rounded-lg shadow p-5 mb-6">
+  <div class="flex items-center justify-between mb-4">
+    <h2 class="font-semibold">Site-Health</h2>
+    <div class="flex items-center gap-3">
+      <div class="text-sm text-slate-500">Score</div>
+      <div class="text-2xl font-semibold
+        {% if health.score >= 80 %}text-emerald-700
+        {% elif health.score >= 50 %}text-amber-700
+        {% else %}text-red-700{% endif %}">{{ health.score }}%</div>
+    </div>
+  </div>
+
+  <div class="grid md:grid-cols-4 gap-6 text-sm">
+    <div>
+      <h3 class="font-medium text-xs uppercase tracking-wide text-slate-500 mb-2">Infrastruktur</h3>
+      <ul>
+        {% for c in health.infrastructure %}{{ check_row(c) }}{% endfor %}
+      </ul>
+    </div>
+    <div>
+      <h3 class="font-medium text-xs uppercase tracking-wide text-slate-500 mb-2">Content</h3>
+      <ul>
+        {% for c in health.content %}{{ check_row(c) }}{% endfor %}
+      </ul>
+    </div>
+    <div>
+      <h3 class="font-medium text-xs uppercase tracking-wide text-slate-500 mb-2">Indexing</h3>
+      <ul>
+        {% for c in health.indexing %}{{ check_row(c) }}{% endfor %}
+      </ul>
+    </div>
+    <div>
+      <h3 class="font-medium text-xs uppercase tracking-wide text-slate-500 mb-2">Compliance (DE)</h3>
+      <ul>
+        {% for c in health.compliance %}{{ check_row(c) }}{% endfor %}
+      </ul>
+    </div>
+  </div>
+</section>
 
 <div class="grid md:grid-cols-2 gap-6">
 
@@ -33,6 +81,17 @@
       <label class="block">
         <span class="text-slate-600">Sprache</span>
         <input name="language" value="{{ site.language }}" class="mt-1 w-full border rounded px-2 py-1">
+      </label>
+      <label class="block">
+        <span class="text-slate-600">Server</span>
+        <select name="server_id" class="mt-1 w-full border rounded px-2 py-1">
+          <option value="none" {% if not site.server_id %}selected{% endif %}>— kein Server —</option>
+          {% for s in servers %}
+          <option value="{{ s.id }}" {% if site.server_id == s.id %}selected{% endif %}>
+            {{ s.hostname }} ({{ s.ip }})
+          </option>
+          {% endfor %}
+        </select>
       </label>
       <label class="block">
         <span class="text-slate-600">Status</span>
@@ -67,8 +126,7 @@
         Research → Write queuen
       </button>
       <p class="text-xs text-slate-500">
-        Der Worker durchläuft OpenAI Deep-Research → Claude-Writer → Backlink-Resolver.
-        Dauert typischerweise 1-3 Minuten.
+        Research (OpenAI Deep) → Write (Claude) → Backlink-Resolver. 1–3 Minuten.
       </p>
     </form>
   </section>
@@ -117,13 +175,12 @@
         </td>
         <td class="px-4 py-2">{{ p.primary_keyword }}</td>
         <td class="px-4 py-2">
-          <span class="inline-block text-xs px-2 py-0.5 rounded
-            {% if p.status.value == 'published' %}bg-emerald-100 text-emerald-800
-            {% elif p.status.value == 'ready' %}bg-sky-100 text-sky-800
-            {% elif p.status.value == 'failed' %}bg-red-100 text-red-800
-            {% else %}bg-slate-100 text-slate-700{% endif %}">
-            {{ p.status.value }}
-          </span>
+          {{ sev_badge(
+            'green' if p.status.value == 'published' else
+            ('yellow' if p.status.value == 'ready' else
+             ('red' if p.status.value == 'failed' else 'gray')),
+            p.status.value
+          ) }}
         </td>
         <td class="px-4 py-2 text-xs text-slate-500">
           {{ p.scheduled_at.strftime('%Y-%m-%d %H:%M') if p.scheduled_at else '—' }}

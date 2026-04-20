@@ -1,0 +1,85 @@
+{% extends "admin/base.html" %}
+{% from "admin/_partials.html" import sev_dot, sev_badge %}
+{% block title %}Footprint · ThreeLayerSEO{% endblock %}
+{% block content %}
+
+<h1 class="text-2xl font-semibold mb-6">Footprint-Analyse</h1>
+<p class="text-sm text-slate-600 mb-6 max-w-3xl">
+  Was siehst du hier? Alle technischen Signale, mit denen Google einen
+  PBN-Cluster identifiziert — gebündelt pro Kategorie. Grün = saubere
+  Verteilung, Gelb = Warnung, Rot = Cluster-Risiko.
+</p>
+
+<div class="bg-white rounded-lg shadow overflow-hidden mb-8">
+  <table class="w-full text-sm">
+    <thead class="bg-slate-100 text-slate-600 uppercase text-xs tracking-wide">
+      <tr>
+        <th class="text-left px-4 py-2 w-10">Status</th>
+        <th class="text-left px-4 py-2">Signal</th>
+        <th class="text-left px-4 py-2">Befund</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in report.signals %}
+      <tr class="border-t border-slate-100 align-top">
+        <td class="px-4 py-3">{{ sev_dot(s.severity) }}</td>
+        <td class="px-4 py-3 font-medium">{{ s.label }}</td>
+        <td class="px-4 py-3">
+          <div>{{ s.summary }}</div>
+          {% if s.detail %}<div class="text-xs text-slate-500 mt-1">{{ s.detail }}</div>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="grid md:grid-cols-2 gap-6">
+  <section class="bg-white rounded-lg shadow p-5">
+    <h2 class="font-semibold mb-3">Pro Tier</h2>
+    <table class="w-full text-sm">
+      <thead class="text-slate-500 text-xs uppercase tracking-wide">
+        <tr>
+          <th class="text-left py-1">Tier</th>
+          <th class="text-right py-1">Domains</th>
+          <th class="text-right py-1">Live</th>
+          <th class="text-right py-1">unique IPs</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for value, info in report.by_tier.items() %}
+        <tr class="border-t">
+          <td class="py-1.5">{{ value }} – {{ info.name }}</td>
+          <td class="py-1.5 text-right">{{ info.count }}</td>
+          <td class="py-1.5 text-right">{{ info.live_sites }}</td>
+          <td class="py-1.5 text-right">{{ info.unique_ips }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section class="bg-white rounded-lg shadow p-5">
+    <h2 class="font-semibold mb-3">Empfehlungen</h2>
+    {% if report.recommendations %}
+    <ul class="text-sm space-y-2">
+      {% for r in report.recommendations %}
+      <li class="border-l-2 border-amber-400 pl-3 text-slate-700">{{ r }}</li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="text-sm text-slate-500">Keine akuten Empfehlungen — der aktuelle Footprint ist unauffällig.</p>
+    {% endif %}
+  </section>
+</div>
+
+<section class="mt-8 bg-slate-50 border border-slate-200 rounded p-4 text-xs text-slate-600 max-w-3xl">
+  <strong>Grenzen dieses Reports:</strong>
+  Einige Signale (WHOIS-Privacy-Status, Nameserver-Glue-Records pro Domain,
+  Googlebot-Crawl-Frequency, Backlink-Velocity) kostet Google-Daten oder
+  INWX-API-Extra-Calls die noch nicht eingebunden sind. Heute deckt der Report
+  die <em>strukturellen</em> Signale ab, die sich aus unserer eigenen Datenbank
+  ergeben.
+</section>
+
+{% endblock %}

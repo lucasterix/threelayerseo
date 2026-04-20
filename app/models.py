@@ -87,6 +87,9 @@ class Site(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     domain_id: Mapped[int] = mapped_column(ForeignKey("domains.id", ondelete="CASCADE"), unique=True)
+    server_id: Mapped[int | None] = mapped_column(
+        ForeignKey("servers.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     title: Mapped[str] = mapped_column(String(255))
     topic: Mapped[str] = mapped_column(Text)           # seed topic / niche
     language: Mapped[str] = mapped_column(String(8), default="de")
@@ -95,6 +98,8 @@ class Site(Base):
         Enum(SiteStatus, native_enum=False, length=16), default=SiteStatus.DRAFT
     )
     homepage_html: Mapped[str | None] = mapped_column(Text, nullable=True)
+    imprint_html: Mapped[str | None] = mapped_column(Text, nullable=True)
+    privacy_html: Mapped[str | None] = mapped_column(Text, nullable=True)
     meta: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -102,7 +107,47 @@ class Site(Base):
     )
 
     domain: Mapped[Domain] = relationship(back_populates="site")
+    server: Mapped[Server | None] = relationship(back_populates="sites")
     posts: Mapped[list[Post]] = relationship(back_populates="site", cascade="all, delete-orphan")
+
+
+class ServerStatus(enum.StrEnum):
+    PLANNED = "planned"       # we intend to provision, not live yet
+    ACTIVE = "active"
+    FULL = "full"             # at soft capacity, new sites shouldn't land here
+    RETIRED = "retired"
+
+
+class Server(Base):
+    """A host we route blog sites through.
+
+    We track both infra we own (Hetzner) and external hops (Cloudflare proxy
+    IPs, dedicated money-site hosts). ``capacity_limit`` is a soft cap for
+    how many sites we deliberately land on one box — tweak per tier.
+    """
+
+    __tablename__ = "servers"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    provider: Mapped[str] = mapped_column(String(32), default="hetzner", index=True)
+    hostname: Mapped[str] = mapped_column(String(128), index=True)
+    ip: Mapped[str] = mapped_column(String(45), unique=True, index=True)
+    ipv6: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    location: Mapped[str] = mapped_column(String(32), default="")   # fsn1 / nbg1 / hel1 / ash / other
+    server_type: Mapped[str] = mapped_column(String(32), default="")  # cx22, cx32, etc.
+    capacity_limit: Mapped[int] = mapped_column(Integer, default=25)
+    monthly_cost_cents: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    status: Mapped[ServerStatus] = mapped_column(
+        Enum(ServerStatus, native_enum=False, length=16), default=ServerStatus.ACTIVE
+    )
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    meta: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    sites: Mapped[list[Site]] = relationship(back_populates="server")
 
 
 class Post(Base):

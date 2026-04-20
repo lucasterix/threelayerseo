@@ -1,32 +1,175 @@
 {% extends "admin/base.html" %}
+{% from "admin/_partials.html" import sev_dot, sev_badge, capacity_bar %}
 {% block title %}Dashboard · ThreeLayerSEO{% endblock %}
 {% block content %}
-<h1 class="text-2xl font-semibold mb-6">Dashboard</h1>
 
-<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-  {% for tier_name, stats in by_tier.items() %}
-  <div class="bg-white rounded-lg shadow p-5">
-    <div class="text-sm uppercase tracking-wide text-slate-500">Tier {{ tier_name }}</div>
-    <div class="mt-2 flex items-baseline gap-3">
-      <div class="text-3xl font-semibold">{{ stats.active }}</div>
-      <div class="text-slate-500">/ {{ stats.total }} aktiv</div>
+<h1 class="text-2xl font-semibold mb-6">Operations</h1>
+
+{# ─── 4-Pillar health bar ────────────────────────────────────────── #}
+<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+  {% for key, p in pillars.items() %}
+  <div class="bg-white rounded-lg shadow p-4">
+    <div class="flex items-center gap-2 text-xs uppercase tracking-wide text-slate-500">
+      {{ sev_dot(p.severity) }} {{ p.label }}
     </div>
+    <div class="text-sm mt-2 text-slate-700 leading-snug">{{ p.summary }}</div>
   </div>
   {% endfor %}
 </div>
 
-<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-  <div class="bg-white rounded-lg shadow p-5">
-    <div class="text-sm uppercase tracking-wide text-slate-500">Sites</div>
-    <div class="text-3xl font-semibold mt-2">{{ sites_count }}</div>
+{# ─── Alerts ────────────────────────────────────────────────────── #}
+{% if alerts %}
+<section class="mb-6 space-y-2">
+  {% for a in alerts %}
+  <div class="rounded border-l-4 px-4 py-3 bg-white shadow-sm
+    {% if a.severity == 'red' %}border-red-500
+    {% elif a.severity == 'yellow' %}border-amber-500
+    {% else %}border-slate-300{% endif %}">
+    <div class="flex items-start gap-3">
+      <span class="text-xl leading-none
+        {% if a.severity == 'red' %}text-red-600
+        {% elif a.severity == 'yellow' %}text-amber-600
+        {% else %}text-slate-500{% endif %}">●</span>
+      <div class="flex-1">
+        <div class="font-semibold text-sm">{{ a.title }}</div>
+        <div class="text-sm text-slate-600">{{ a.body }}</div>
+      </div>
+      {% if a.link %}
+      <a href="{{ a.link }}" class="text-sky-700 text-sm hover:underline">öffnen →</a>
+      {% endif %}
+    </div>
   </div>
-  <div class="bg-white rounded-lg shadow p-5">
-    <div class="text-sm uppercase tracking-wide text-slate-500">Posts gesamt</div>
-    <div class="text-3xl font-semibold mt-2">{{ posts_total }}</div>
-  </div>
-  <div class="bg-white rounded-lg shadow p-5">
-    <div class="text-sm uppercase tracking-wide text-slate-500">Posts veröffentlicht</div>
-    <div class="text-3xl font-semibold mt-2">{{ posts_published }}</div>
-  </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+<div class="grid md:grid-cols-3 gap-6">
+
+  {# ─── Tier overview ─────────────────────────────────────────── #}
+  <section class="md:col-span-2 bg-white rounded-lg shadow p-5">
+    <h2 class="font-semibold mb-4">Tier-Übersicht</h2>
+    <div class="grid grid-cols-3 gap-4">
+      {% for name, stats in by_tier.items() %}
+      <div class="border rounded p-3">
+        <div class="flex items-center justify-between">
+          <div class="text-xs uppercase tracking-wide text-slate-500">Tier {{ stats.value }}</div>
+          <div class="text-[10px] text-slate-400">{{ name }}</div>
+        </div>
+        <div class="mt-1 flex items-baseline gap-2">
+          <div class="text-2xl font-semibold">{{ stats.live }}</div>
+          <div class="text-xs text-slate-500">/ {{ stats.active }} aktiv · {{ stats.total }} insgesamt</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="grid grid-cols-3 gap-4 mt-5 pt-5 border-t">
+      <div><div class="text-xs text-slate-500">Sites</div><div class="text-xl font-semibold">{{ sites_count }}</div></div>
+      <div><div class="text-xs text-slate-500">Posts gesamt</div><div class="text-xl font-semibold">{{ posts_total }}</div></div>
+      <div><div class="text-xs text-slate-500">Posts veröffentlicht</div><div class="text-xl font-semibold">{{ posts_published }}</div></div>
+    </div>
+  </section>
+
+  {# ─── Infrastructure ────────────────────────────────────────── #}
+  <section class="bg-white rounded-lg shadow p-5">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="font-semibold">Server-Fleet</h2>
+      <a href="/servers" class="text-xs text-sky-700 hover:underline">verwalten →</a>
+    </div>
+    {% if fleet.servers %}
+      <div class="space-y-3">
+        {% for c in fleet.servers %}
+        <div>
+          <div class="flex items-center justify-between text-sm">
+            <span class="font-mono text-xs">{{ c.server.hostname }}</span>
+            <span class="text-xs text-slate-500">{{ c.used }}/{{ c.limit }}</span>
+          </div>
+          <div class="mt-1">
+            {{ capacity_bar(c.pct, 'red' if c.pct >= 0.9 else ('yellow' if c.pct >= 0.7 else 'green')) }}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="mt-4 pt-4 border-t text-sm text-slate-600">
+        Headroom: <span class="font-semibold">{{ fleet.headroom }}</span> weitere Sites
+      </div>
+    {% else %}
+      <p class="text-sm text-slate-500">
+        Noch keine Server gepflegt.
+        <a href="/servers/new" class="text-sky-700 hover:underline">Ersten Server anlegen →</a>
+      </p>
+    {% endif %}
+  </section>
 </div>
+
+<div class="grid md:grid-cols-2 gap-6 mt-6">
+
+  {# ─── Pipeline ────────────────────────────────────────────── #}
+  <section class="bg-white rounded-lg shadow p-5">
+    <h2 class="font-semibold mb-3">Worker-Pipeline</h2>
+    <table class="w-full text-sm">
+      <thead class="text-slate-500 text-xs uppercase tracking-wide">
+        <tr>
+          <th class="text-left py-1">Queue</th>
+          <th class="text-right py-1">running</th>
+          <th class="text-right py-1">queued</th>
+          <th class="text-right py-1">failed</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for q, stats in pipeline.items() %}
+        <tr class="border-t">
+          <td class="py-1.5 font-mono">{{ q }}</td>
+          <td class="py-1.5 text-right">{{ stats.started }}</td>
+          <td class="py-1.5 text-right">{{ stats.queued }}</td>
+          <td class="py-1.5 text-right {% if stats.failed %}text-red-700 font-semibold{% endif %}">{{ stats.failed }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  {# ─── Expiring domains ───────────────────────────────────── #}
+  <section class="bg-white rounded-lg shadow p-5">
+    <h2 class="font-semibold mb-3">Ablaufende Domains (≤ 30 Tage)</h2>
+    {% if expiring %}
+    <ul class="text-sm divide-y">
+      {% for d in expiring %}
+      <li class="py-1.5 flex items-center justify-between">
+        <a href="/domains" class="font-mono text-xs hover:underline">{{ d.name }}</a>
+        <span class="text-xs text-slate-500">{{ d.expires_at.strftime('%Y-%m-%d') }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="text-sm text-slate-500">Keine Domains laufen innerhalb der nächsten 30 Tage aus.</p>
+    {% endif %}
+  </section>
+
+</div>
+
+{# ─── Recent activity ──────────────────────────────────────── #}
+<section class="mt-6 bg-white rounded-lg shadow p-5">
+  <h2 class="font-semibold mb-3">Letzte Domains</h2>
+  {% if recent_domains %}
+  <ul class="text-sm divide-y">
+    {% for d in recent_domains %}
+    <li class="py-2 flex items-center gap-3">
+      <span class="text-xs text-slate-400 w-16">{{ d.created_at.strftime('%m-%d %H:%M') }}</span>
+      <span class="font-mono text-xs flex-1">{{ d.name }}</span>
+      <span class="text-xs">Tier {{ d.tier.value }}</span>
+      {{ sev_badge(
+          'green' if d.status.value == 'active' else ('red' if d.status.value == 'failed' else ('yellow' if d.status.value in ('pending','purchasing') else 'gray')),
+          d.status.value
+      ) }}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="text-sm text-slate-500">Noch keine Domains.
+    <a href="/domains/search" class="text-sky-700 hover:underline">Jetzt welche kaufen →</a>
+  </p>
+  {% endif %}
+</section>
+
 {% endblock %}

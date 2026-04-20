@@ -1,0 +1,51 @@
+{% macro sev_dot(sev) -%}
+{%- set cls = {
+  'green': 'bg-emerald-500',
+  'yellow': 'bg-amber-500',
+  'red': 'bg-red-500',
+  'gray': 'bg-slate-300',
+}.get(sev, 'bg-slate-300') -%}
+<span class="inline-block h-2.5 w-2.5 rounded-full {{ cls }}"></span>
+{%- endmacro %}
+
+{% macro sev_badge(sev, text) -%}
+{%- set cls = {
+  'green': 'bg-emerald-100 text-emerald-800',
+  'yellow': 'bg-amber-100 text-amber-800',
+  'red': 'bg-red-100 text-red-800',
+  'gray': 'bg-slate-100 text-slate-700',
+}.get(sev, 'bg-slate-100 text-slate-700') -%}
+<span class="inline-block text-xs px-2 py-0.5 rounded {{ cls }}">{{ text }}</span>
+{%- endmacro %}
+
+{% macro capacity_bar(pct, severity='green') -%}
+{%- set cls = {
+  'green': 'bg-emerald-500',
+  'yellow': 'bg-amber-500',
+  'red': 'bg-red-500',
+  'gray': 'bg-slate-300',
+}.get(severity, 'bg-emerald-500') -%}
+{%- set width = ((pct * 100) | round(0, 'floor')) | int -%}
+{%- if width > 100 -%}{%- set width = 100 -%}{%- endif -%}
+<div class="w-full bg-slate-200 rounded h-2 overflow-hidden">
+  <div class="h-full {{ cls }}" style="width: {{ width }}%"></div>
+</div>
+{%- endmacro %}
+
+{% macro check_row(check) -%}
+<li class="flex items-start gap-2 py-1">
+  {% if check.ok %}
+    <span class="text-emerald-600 mt-0.5">✓</span>
+    <div>
+      <span class="text-slate-800">{{ check.label }}</span>
+      {% if check.detail %}<div class="text-xs text-slate-500">{{ check.detail }}</div>{% endif %}
+    </div>
+  {% else %}
+    <span class="text-slate-300 mt-0.5">○</span>
+    <div>
+      <span class="text-slate-500">{{ check.label }}</span>
+      {% if check.detail %}<div class="text-xs text-slate-400">{{ check.detail }}</div>{% endif %}
+    </div>
+  {% endif %}
+</li>
+{%- endmacro %}

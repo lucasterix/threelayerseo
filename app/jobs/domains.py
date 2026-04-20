@@ -54,8 +54,13 @@ async def _register(domain_id: int) -> None:
             except Exception:  # noqa: BLE001
                 log.warning("DNS A-record setup partial for %s", domain.name, exc_info=True)
 
+            # Auto-assign to the least-full active server, if any exists.
+            from app.services.servers import pick_least_full_server
+
+            srv = await pick_least_full_server(session)
             site = Site(
                 domain_id=domain.id,
+                server_id=srv.id if srv else None,
                 title=domain.name,
                 topic=domain.name,
                 status=SiteStatus.DRAFT,
