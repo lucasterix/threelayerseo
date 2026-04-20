@@ -15,6 +15,15 @@ if [[ -n "${GHCR_TOKEN:-}" ]]; then
 fi
 docker pull "$APP_IMAGE"
 
+# Keep the local `:latest` tag aligned with the freshly pulled image so
+# manual `docker compose up -d` (which resolves APP_IMAGE from .env, where
+# we pin `:latest`) doesn't run stale code. GHA always passes APP_IMAGE
+# as the SHA tag so this is purely for out-of-band restarts.
+local_latest="${APP_IMAGE%:*}:latest"
+if [[ "$APP_IMAGE" != "$local_latest" ]]; then
+    docker tag "$APP_IMAGE" "$local_latest"
+fi
+
 echo "[deploy] docker compose up"
 docker compose -f docker-compose.yml --env-file .env up -d --remove-orphans
 
