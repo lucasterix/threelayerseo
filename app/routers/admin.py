@@ -1217,6 +1217,28 @@ async def post_detail(
     )
 
 
+# ─── Network graph (visual backlink map) ───────────────────────────────────
+
+@router.get("/network", response_class=HTMLResponse)
+async def network_view(
+    request: Request,
+    _: str = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    from app.services.network_graph import build as build_graph
+
+    graph = await build_graph(session)
+    return templates.TemplateResponse(
+        "admin/network.html",
+        {
+            "request": request,
+            "nodes": graph.nodes,
+            "edges": graph.edges,
+            "stats": graph.stats,
+        },
+    )
+
+
 # ─── Money Sites (target of Tier-3 backlinks, hosted externally) ──────────
 
 @router.get("/money", response_class=HTMLResponse)

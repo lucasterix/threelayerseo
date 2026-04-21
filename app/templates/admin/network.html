@@ -1,0 +1,136 @@
+{% extends "admin/base.html" %}
+{% block title %}Netzwerk-Graph · ThreeLayerSEO{% endblock %}
+{% block content %}
+
+<div class="flex items-center justify-between mb-4 flex-wrap gap-3">
+  <h1 class="text-2xl font-semibold">Netzwerk-Graph</h1>
+  <div class="text-sm text-slate-600">
+    {{ stats.sites }} Sites · {{ stats.money_sites }} Money-Sites ·
+    {{ stats.edges }} Link-Kanten · {{ stats.total_backlinks }} Backlinks gesamt
+  </div>
+</div>
+
+{# ─── Legend ──────────────────────────────────────────────────── #}
+<div class="bg-white rounded-lg shadow p-4 mb-4">
+  <div class="flex items-center flex-wrap gap-5 text-sm">
+    <div class="flex items-center gap-2">
+      <span class="inline-block w-3 h-3 rounded-full" style="background:#94a3b8"></span>
+      Tier 1 ({{ stats.tier_counts.get(1, 0) }})
+    </div>
+    <div class="flex items-center gap-2">
+      <span class="inline-block w-3 h-3 rounded-full" style="background:#06b6d4"></span>
+      Tier 2 ({{ stats.tier_counts.get(2, 0) }})
+    </div>
+    <div class="flex items-center gap-2">
+      <span class="inline-block w-3 h-3 rounded-full" style="background:#10b981"></span>
+      Tier 3 ({{ stats.tier_counts.get(3, 0) }})
+    </div>
+    <div class="flex items-center gap-2">
+      <span class="inline-block w-3 h-3 transform rotate-45" style="background:#f59e0b"></span>
+      Money-Sites ({{ stats.money_sites }})
+    </div>
+    <div class="ml-auto flex items-center gap-2 text-xs text-slate-500">
+      <span>Node-Größe = Post-Count · Edge-Dicke = Link-Anzahl · Richtung: Pfeil zeigt ans Ziel</span>
+    </div>
+  </div>
+  <div class="mt-3 flex items-center gap-3 flex-wrap text-xs">
+    <button id="f-t1" class="filter-btn px-2 py-1 border rounded hover:bg-slate-50">Tier-1</button>
+    <button id="f-t2" class="filter-btn px-2 py-1 border rounded hover:bg-slate-50">Tier-2</button>
+    <button id="f-t3" class="filter-btn px-2 py-1 border rounded hover:bg-slate-50">Tier-3</button>
+    <button id="f-money" class="filter-btn px-2 py-1 border rounded hover:bg-slate-50">Money</button>
+    <button id="f-all" class="px-2 py-1 border rounded bg-slate-100 hover:bg-slate-200">Alle anzeigen</button>
+    <span class="ml-auto text-slate-500">Hover = Details · Klick = Selektion zentrieren · Drag = verschieben</span>
+  </div>
+</div>
+
+{# ─── Graph canvas ────────────────────────────────────────────── #}
+<div id="graph" class="bg-white rounded-lg shadow border"
+     style="height: 700px;"></div>
+
+{% if not nodes %}
+<p class="text-sm text-slate-500 mt-4">
+  Noch keine LIVE-Sites — das Netzwerk zeigt sich, sobald du Domains gekauft und Sites aktiviert hast.
+  <a href="/research" class="text-sky-700 hover:underline">Mit Auto-Research starten →</a>
+</p>
+{% endif %}
+
+<script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+<script>
+  const nodesData = {{ nodes | tojson }};
+  const edgesData = {{ edges | tojson }};
+
+  const nodes = new vis.DataSet(nodesData);
+  const edges = new vis.DataSet(edgesData);
+
+  const options = {
+    nodes: {
+      shape: 'dot',
+      scaling: {
+        min: 10,
+        max: 40,
+        label: { min: 10, max: 20, drawThreshold: 0, maxVisible: 30 },
+      },
+      font: { size: 13, color: '#0f172a' },
+      borderWidth: 1.5,
+    },
+    edges: {
+      arrows: { to: { enabled: true, scaleFactor: 0.6 } },
+      color: { color: '#94a3b8', highlight: '#0284c7', opacity: 0.6 },
+      smooth: { type: 'continuous' },
+      scaling: { min: 1, max: 8 },
+      font: { size: 10, align: 'middle', strokeWidth: 0, color: '#64748b' },
+    },
+    groups: {
+      'tier-1': { color: { background: '#cbd5e1', border: '#64748b' } },
+      'tier-2': { color: { background: '#67e8f9', border: '#0891b2' } },
+      'tier-3': { color: { background: '#6ee7b7', border: '#059669' } },
+      'money':  { color: { background: '#fcd34d', border: '#d97706' }, shape: 'diamond', size: 28 },
+    },
+    physics: {
+      solver: 'forceAtlas2Based',
+      forceAtlas2Based: {
+        gravitationalConstant: -55,
+        centralGravity: 0.01,
+        springLength: 140,
+        springConstant: 0.08,
+      },
+      stabilization: { iterations: 250 },
+    },
+    interaction: { hover: true, tooltipDelay: 120 },
+  };
+
+  const container = document.getElementById('graph');
+  const network = new vis.Network(container, { nodes, edges }, options);
+
+  // ─── Filter buttons ─────────────────────────────────────────
+  function filterByGroup(group) {
+    const keepIds = new Set();
+    nodesData.forEach(n => {
+      if (group === 'all' || n.group === group) keepIds.add(n.id);
+    });
+    nodes.forEach(n => {
+      nodes.update({ id: n.id, hidden: !keepIds.has(n.id) });
+    });
+    edges.forEach(e => {
+      const show = keepIds.has(e.from) && keepIds.has(e.to);
+      edges.update({ id: e.id, hidden: !show });
+    });
+  }
+  document.getElementById('f-t1').onclick = () => filterByGroup('tier-1');
+  document.getElementById('f-t2').onclick = () => filterByGroup('tier-2');
+  document.getElementById('f-t3').onclick = () => filterByGroup('tier-3');
+  document.getElementById('f-money').onclick = () => filterByGroup('money');
+  document.getElementById('f-all').onclick = () => filterByGroup('all');
+
+  // Click navigates to the site detail page
+  network.on('doubleClick', (params) => {
+    if (!params.nodes.length) return;
+    const id = params.nodes[0];
+    if (id.startsWith('site:')) {
+      window.location.href = '/sites/' + id.split(':')[1];
+    } else if (id.startsWith('money:')) {
+      window.location.href = '/money';
+    }
+  });
+</script>
+{% endblock %}
