@@ -1,0 +1,69 @@
+{% extends "admin/base.html" %}
+{% from "admin/_partials.html" import category_select %}
+{% block title %}{% if site %}Money-Site bearbeiten{% else %}Money-Site anlegen{% endif %} · ThreeLayerSEO{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-semibold mb-6">
+  {% if site %}Money-Site bearbeiten{% else %}Money-Site anlegen{% endif %}
+</h1>
+
+<form method="post"
+      action="{% if site %}/money/{{ site.id }}/update{% else %}/money{% endif %}"
+      class="bg-white rounded-lg shadow p-6 space-y-4 max-w-2xl">
+
+  <label class="block">
+    <span class="text-sm font-medium">Name / Kurzlabel</span>
+    <input name="name" required
+           value="{{ site.name if site else '' }}"
+           class="mt-1 w-full border rounded px-3 py-2"
+           placeholder="z.B. Fröhlich-Dienste Hauptseite">
+  </label>
+
+  <label class="block">
+    <span class="text-sm font-medium">URL</span>
+    <input name="url" type="url" required
+           value="{{ site.url if site else '' }}"
+           class="mt-1 w-full border rounded px-3 py-2 font-mono text-sm"
+           placeholder="https://froehlichdienste.de/">
+    <span class="text-xs text-slate-500 mt-1 block">
+      Vollständige URL inklusive https:// und Trailing-Slash falls es die Startseite ist.
+      Kann auch ein bestimmter Landingpage-Pfad sein (z.B. <code>/produkte/angebot</code>).
+    </span>
+  </label>
+
+  <label class="block">
+    <span class="text-sm font-medium">Kategorie</span>
+    {{ category_select('category', (site.category if site else 'healthcare'), categories, allow_empty=True) }}
+    <span class="text-xs text-slate-500 mt-1 block">
+      Tier-3-Posts mit derselben Kategorie bekommen diese Money-Site mit Vorrang als Linkziel.
+    </span>
+  </label>
+
+  <label class="block">
+    <span class="text-sm font-medium">Anker-Text-Vorschläge (optional, einer pro Zeile)</span>
+    <textarea name="anchor_hints" rows="4"
+              class="mt-1 w-full border rounded px-3 py-2 font-mono text-xs"
+              placeholder="fröhlichdienste&#10;hier mehr erfahren&#10;professionelle betreuung">{% if site and site.anchor_hints %}{{ site.anchor_hints | join('\n') }}{% endif %}</textarea>
+    <span class="text-xs text-slate-500 mt-1 block">
+      Wenn leer, nutzt der Writer seine eigenen Anker-Texte aus dem Post-Kontext.
+    </span>
+  </label>
+
+  <label class="block">
+    <span class="text-sm font-medium">Notizen</span>
+    <textarea name="notes" rows="2"
+              class="mt-1 w-full border rounded px-3 py-2">{{ site.notes if site and site.notes else '' }}</textarea>
+  </label>
+
+  <label class="inline-flex items-center gap-2 text-sm">
+    <input type="checkbox" name="active" {% if not site or site.active %}checked{% endif %}>
+    Aktiv (kommt als Linkziel in Frage)
+  </label>
+
+  <div class="flex gap-3 pt-2">
+    <button class="bg-slate-900 text-white px-4 py-2 rounded text-sm hover:bg-slate-800">
+      {% if site %}Speichern{% else %}Anlegen{% endif %}
+    </button>
+    <a href="/money" class="text-sm text-slate-600 hover:underline self-center">Abbrechen</a>
+  </div>
+</form>
+{% endblock %}

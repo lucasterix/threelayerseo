@@ -298,12 +298,24 @@ class ResearchRun(Base):
 
 
 class MoneySite(Base):
-    """Target site that tier-3 backlinks ultimately point at."""
+    """Target site that tier-3 backlinks ultimately point at.
+
+    Lives OUTSIDE our INWX portfolio — hosted anywhere, registered
+    anywhere. We only store the URL + metadata so the tier-3 linker
+    has a menu to pick from. Category lets us prefer matching
+    niche (healthcare tier-3 post → healthcare money site).
+    """
 
     __tablename__ = "money_sites"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(255))
     url: Mapped[str] = mapped_column(String(2048))
+    category: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
+    active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+    anchor_hints: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )

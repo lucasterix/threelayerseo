@@ -32,6 +32,12 @@ POST_CREATE_MIGRATIONS = [
     "ALTER TABLE posts ADD COLUMN IF NOT EXISTS refresh_due_at TIMESTAMPTZ",
     "CREATE INDEX IF NOT EXISTS ix_posts_refresh_due_at ON posts(refresh_due_at)",
     "CREATE INDEX IF NOT EXISTS ix_research_runs_status ON research_runs(status)",
+    "ALTER TABLE money_sites ADD COLUMN IF NOT EXISTS category VARCHAR(32)",
+    "ALTER TABLE money_sites ADD COLUMN IF NOT EXISTS active BOOLEAN DEFAULT true NOT NULL",
+    "ALTER TABLE money_sites ADD COLUMN IF NOT EXISTS anchor_hints JSON",
+    "ALTER TABLE money_sites ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now() NOT NULL",
+    "CREATE INDEX IF NOT EXISTS ix_money_sites_category ON money_sites(category)",
+    "CREATE INDEX IF NOT EXISTS ix_money_sites_active ON money_sites(active)",
 ]
 
 

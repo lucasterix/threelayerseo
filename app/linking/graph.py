@@ -51,10 +51,23 @@ async def pick_targets(
     """
     source_tier = source_site.domain.tier
     if source_tier == Tier.GOOD:
-        money_sites = (await session.execute(select(MoneySite))).scalars().all()
+        money_sites = list(
+            (
+                await session.execute(select(MoneySite).where(MoneySite.active.is_(True)))
+            ).scalars().all()
+        )
         if not money_sites:
             return []
-        return [LinkTarget(url=random.choice(money_sites).url) for _ in range(slots)]
+        # Prefer money sites that match the source's category; fall back
+        # to the full pool if none match (healthcare tier-3 → healthcare
+        # money site wherever possible, else any active money site).
+        src_cat = source_site.domain.category
+        if src_cat:
+            matching = [m for m in money_sites if m.category == src_cat]
+            if matching:
+                money_sites = matching
+        picks = [random.choice(money_sites) for _ in range(slots)]
+        return [LinkTarget(url=m.url) for m in picks]
 
     higher_tier = Tier(int(source_tier) + 1)
     stmt = (

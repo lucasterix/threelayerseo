@@ -29,7 +29,7 @@ from app.models import (
 )
 from app.queue import content_q, domains_q, publish_q, redis_conn
 from app.categories import all_categories, FEATURED_KEYS
-from app.models import Expense, KeywordCluster, ResearchRun
+from app.models import Expense, KeywordCluster, MoneySite, ResearchRun
 from app.services import budget
 from app.services.domains import (
     DEFAULT_TLDS,
@@ -1215,6 +1215,127 @@ async def post_detail(
     return templates.TemplateResponse(
         "admin/post_detail.html", {"request": request, "post": post}
     )
+
+
+# ─── Money Sites (target of Tier-3 backlinks, hosted externally) ──────────
+
+@router.get("/money", response_class=HTMLResponse)
+async def money_list(
+    request: Request,
+    _: str = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    rows = list(
+        (
+            await session.execute(
+                select(MoneySite).order_by(MoneySite.active.desc(), MoneySite.name)
+            )
+        ).scalars().all()
+    )
+    return templates.TemplateResponse(
+        "admin/money.html",
+        {"request": request, "money_sites": rows, "categories": all_categories()},
+    )
+
+
+@router.get("/money/new", response_class=HTMLResponse)
+async def money_new_form(
+    request: Request,
+    _: str = Depends(require_admin),
+):
+    return templates.TemplateResponse(
+        "admin/money_form.html",
+        {
+            "request": request,
+            "categories": all_categories(),
+            "site": None,
+        },
+    )
+
+
+@router.get("/money/{site_id}/edit", response_class=HTMLResponse)
+async def money_edit_form(
+    site_id: int,
+    request: Request,
+    _: str = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    site = await session.get(MoneySite, site_id)
+    if not site:
+        raise HTTPException(status_code=404)
+    return templates.TemplateResponse(
+        "admin/money_form.html",
+        {
+            "request": request,
+            "categories": all_categories(),
+            "site": site,
+        },
+    )
+
+
+@router.post("/money")
+async def money_create(
+    name: str = Form(...),
+    url: str = Form(...),
+    category: str = Form(""),
+    anchor_hints: str = Form(""),
+    notes: str = Form(""),
+    active: str = Form("on"),
+    _: str = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    hints = [h.strip() for h in anchor_hints.splitlines() if h.strip()]
+    ms = MoneySite(
+        name=name.strip(),
+        url=url.strip(),
+        category=category or None,
+        anchor_hints=hints or None,
+        notes=notes or None,
+        active=bool(active),
+    )
+    session.add(ms)
+    await session.commit()
+    return RedirectResponse(url="/money", status_code=303)
+
+
+@router.post("/money/{site_id}/update")
+async def money_update(
+    site_id: int,
+    name: str = Form(""),
+    url: str = Form(""),
+    category: str = Form(""),
+    anchor_hints: str = Form(""),
+    notes: str = Form(""),
+    active: str = Form(""),
+    _: str = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    ms = await session.get(MoneySite, site_id)
+    if not ms:
+        raise HTTPException(status_code=404)
+    if name.strip():
+        ms.name = name.strip()
+    if url.strip():
+        ms.url = url.strip()
+    ms.category = category or None
+    ms.anchor_hints = [h.strip() for h in anchor_hints.splitlines() if h.strip()] or None
+    ms.notes = notes or None
+    ms.active = bool(active)
+    await session.commit()
+    return RedirectResponse(url="/money", status_code=303)
+
+
+@router.post("/money/{site_id}/delete")
+async def money_delete(
+    site_id: int,
+    _: str = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    ms = await session.get(MoneySite, site_id)
+    if ms:
+        await session.delete(ms)
+        await session.commit()
+    return RedirectResponse(url="/money", status_code=303)
 
 
 # ─── Servers ────────────────────────────────────────────────────────────────

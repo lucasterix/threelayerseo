@@ -1,0 +1,69 @@
+{% extends "admin/base.html" %}
+{% from "admin/_partials.html" import category_badge, sev_badge %}
+{% block title %}Money-Sites · ThreeLayerSEO{% endblock %}
+{% block content %}
+<div class="flex items-center justify-between mb-4 flex-wrap gap-3">
+  <h1 class="text-2xl font-semibold">Money-Sites</h1>
+  <a href="/money/new" class="bg-emerald-600 text-white px-4 py-2 rounded text-sm hover:bg-emerald-700">+ Money-Site anlegen</a>
+</div>
+
+<p class="text-sm text-slate-500 mb-6 max-w-3xl">
+  Externe Seiten, die <strong>extern gehostet</strong> sind (nicht auf diesem Server) und das Ziel des Tier-3-Link-Juice
+  sind. Jede Tier-3-Post-Generation wählt aus der aktiven Liste einen passenden
+  Eintrag aus — wenn möglich mit übereinstimmender Kategorie. Anchor-Hints sind optional
+  und können vom Writer als natürliche Anker-Textvorschläge verwendet werden.
+</p>
+
+<div class="bg-white rounded-lg shadow overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-slate-100 text-slate-600 uppercase text-xs tracking-wide">
+      <tr>
+        <th class="text-left px-4 py-2">Name</th>
+        <th class="text-left px-4 py-2">URL</th>
+        <th class="text-left px-4 py-2">Kategorie</th>
+        <th class="text-left px-4 py-2">Status</th>
+        <th class="text-left px-4 py-2">Anker-Hints</th>
+        <th class="text-left px-4 py-2 w-28">Aktion</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for m in money_sites %}
+      <tr class="border-t border-slate-100 align-top">
+        <td class="px-4 py-2 font-medium">{{ m.name }}</td>
+        <td class="px-4 py-2">
+          <a href="{{ m.url }}" target="_blank" class="text-sky-700 hover:underline font-mono text-xs break-all">{{ m.url }}</a>
+        </td>
+        <td class="px-4 py-2">{{ category_badge(m.category, categories) }}</td>
+        <td class="px-4 py-2">
+          {{ sev_badge(
+            'green' if m.active else 'gray',
+            'active' if m.active else 'inactive'
+          ) }}
+        </td>
+        <td class="px-4 py-2 text-xs text-slate-500">
+          {% if m.anchor_hints %}{{ m.anchor_hints | join(' · ') }}{% else %}—{% endif %}
+        </td>
+        <td class="px-4 py-2 space-x-2">
+          <a href="/money/{{ m.id }}/edit" class="text-xs text-sky-700 hover:underline">edit</a>
+          <form method="post" action="/money/{{ m.id }}/delete" class="inline"
+                onsubmit="return confirm('Wirklich löschen?')">
+            <button class="text-xs text-red-700 hover:underline">delete</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="px-4 py-8 text-center text-slate-500">
+        Noch keine Money-Sites. <a href="/money/new" class="text-sky-700 hover:underline">Erste anlegen →</a>
+      </td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<p class="text-xs text-slate-500 mt-6 max-w-3xl">
+  <strong>Wichtig:</strong> Money-Sites liegen bewusst außerhalb unseres Stacks. Sie werden nicht von
+  unserem Renderer bedient und nicht an Cloudflare/GSC angemeldet. Unser System kennt nur URL +
+  Kategorie und verwendet sie als <em>Linkziel</em> aus Tier-3-Posts. Änderungen wirken auf
+  zukünftige Post-Generationen — bereits publizierte Posts behalten ihre Links.
+</p>
+{% endblock %}
