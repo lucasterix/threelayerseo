@@ -1,0 +1,106 @@
+{% extends "admin/base.html" %}
+{% from "admin/_partials.html" import category_select, sev_badge %}
+{% block title %}Auto-Research · ThreeLayerSEO{% endblock %}
+{% block content %}
+<div class="flex items-center justify-between mb-2 flex-wrap gap-2">
+  <h1 class="text-2xl font-semibold">Auto-Research ✨</h1>
+  <a href="/research/quick" class="text-xs text-sky-700 hover:underline">Quick-Modus (sync, keine Expired-Suche) →</a>
+</div>
+<p class="text-sm text-slate-500 mb-6 max-w-3xl">
+  Deep-Research: ein Seed → Hintergrund-Job expandiert breit, sucht
+  Registrierbare <em>und</em> Expired-Domains mit Link-Juice,
+  scored alles. Du kommst ca. 2–5 Min später zurück, prüfst, genehmigst.
+  <strong>Kein Auto-Kauf</strong> — nichts wird ohne deinen Klick registriert.
+</p>
+
+<form method="post" action="/research" class="bg-white rounded-lg shadow p-6 space-y-4 mb-8">
+  <label class="block">
+    <span class="text-sm font-medium">Seed (Nische / Thema / Hauptkeyword)</span>
+    <input name="seed" required
+           class="mt-1 w-full border rounded px-3 py-2"
+           placeholder="z.B.: diabetes ernährung, hundefutter bio, alternative medizin">
+  </label>
+
+  <div class="grid md:grid-cols-2 gap-4">
+    <label class="block">
+      <span class="text-sm font-medium">Kategorie-Hinweis (schärft die Suche)</span>
+      {{ category_select('category_hint', 'healthcare', categories, allow_empty=True) }}
+    </label>
+    <label class="block">
+      <span class="text-sm font-medium">Depth</span>
+      <select name="depth" class="mt-1 w-full border rounded px-2 py-1 text-sm">
+        <option value="quick">Quick — ~40 Kandidaten, ~1min, ~$0,05</option>
+        <option value="normal" selected>Normal — ~120 Kandidaten, 2-4min, ~$0,20</option>
+        <option value="deep">Deep — ~240 Kandidaten, 5-10min, ~$0,50</option>
+      </select>
+    </label>
+  </div>
+
+  <div>
+    <label class="block text-sm font-medium mb-1">TLDs</label>
+    <div class="flex flex-wrap gap-3">
+      {% for tld in default_tlds %}
+      <label class="inline-flex items-center gap-1 text-sm">
+        <input type="checkbox" name="tlds" value="{{ tld }}"
+               {% if tld in ('de','com','info') %}checked{% endif %}>
+        .{{ tld }}
+      </label>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="flex items-center gap-3">
+    <button class="bg-emerald-600 text-white px-5 py-2 rounded text-sm font-medium hover:bg-emerald-700">
+      ✨ Deep-Research starten
+    </button>
+    <span class="text-xs text-slate-500">Job läuft im Hintergrund — du bekommst die Approval-Liste zum Review</span>
+  </div>
+</form>
+
+<h2 class="text-lg font-semibold mb-3">Letzte Runs ({{ recent_runs|length }})</h2>
+{% if recent_runs %}
+<div class="bg-white rounded-lg shadow overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-slate-100 text-slate-600 uppercase text-xs tracking-wide">
+      <tr>
+        <th class="text-left px-4 py-2">Seed</th>
+        <th class="text-left px-4 py-2">Depth</th>
+        <th class="text-left px-4 py-2">Status</th>
+        <th class="text-right px-4 py-2">verfügbar</th>
+        <th class="text-right px-4 py-2">Expired-Juice</th>
+        <th class="text-right px-4 py-2">Kosten</th>
+        <th class="text-left px-4 py-2">Gestartet</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in recent_runs %}
+      <tr class="border-t border-slate-100">
+        <td class="px-4 py-2 font-mono text-xs">
+          <a href="/research/{{ r.id }}" class="text-sky-700 hover:underline">{{ r.seed }}</a>
+          {% if r.category_hint %}<span class="text-slate-400 ml-1">· {{ r.category_hint }}</span>{% endif %}
+        </td>
+        <td class="px-4 py-2">{{ r.depth }}</td>
+        <td class="px-4 py-2">
+          {{ sev_badge(
+            'green' if r.status == 'complete' else (
+              'red' if r.status == 'failed' else (
+                'yellow' if r.status == 'running' else 'gray')),
+            r.status
+          ) }}
+          {% if r.status == 'running' %}
+          <span class="text-xs text-slate-500 ml-2">{{ r.progress_pct }} % — {{ r.progress_label }}</span>
+          {% endif %}
+        </td>
+        <td class="px-4 py-2 text-right">{{ r.candidates|length if r.candidates else 0 }}</td>
+        <td class="px-4 py-2 text-right">{{ r.expired_opportunities|length if r.expired_opportunities else 0 }}</td>
+        <td class="px-4 py-2 text-right">{{ '%.2f €' | format(r.cost_cents/100) }}</td>
+        <td class="px-4 py-2 text-xs text-slate-500">{{ r.started_at.strftime('%Y-%m-%d %H:%M') }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<p class="text-sm text-slate-500">Noch kein Run. Start einen oben.</p>
+{% endif %}
+{% endblock %}
