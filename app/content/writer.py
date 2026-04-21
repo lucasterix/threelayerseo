@@ -125,12 +125,28 @@ def write_post(
     user_parts.append(f"Brief JSON:\n{json.dumps(brief, ensure_ascii=False, indent=2)}")
     user = "\n\n".join(user_parts)
 
-    resp = client.messages.create(
-        model=WRITER_MODEL,
-        max_tokens=6000,
-        temperature=profile.temperature,
-        system=SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": user}],
-    )
+    # Claude Opus 4.7+ no longer accepts `temperature`. Older models still
+    # support it — useful for the stylometric profile to inject variation.
+    # Rather than hard-coding "which model takes what", try with temperature
+    # and transparently retry without on a 400-deprecated error.
+    create_kwargs: dict = {
+        "model": WRITER_MODEL,
+        "max_tokens": 6000,
+        "system": SYSTEM_PROMPT,
+        "messages": [{"role": "user", "content": user}],
+    }
+    if not WRITER_MODEL.startswith(("claude-opus-4-7", "claude-opus-5")):
+        create_kwargs["temperature"] = profile.temperature
+
+    try:
+        resp = client.messages.create(**create_kwargs)
+    except Exception as e:  # noqa: BLE001
+        msg = str(e).lower()
+        if "temperature" in msg and "deprecated" in msg and "temperature" in create_kwargs:
+            log.info("writer: retrying without temperature (deprecated for %s)", WRITER_MODEL)
+            create_kwargs.pop("temperature", None)
+            resp = client.messages.create(**create_kwargs)
+        else:
+            raise
     markdown = "".join(block.text for block in resp.content if getattr(block, "type", "") == "text")
     return markdown, profile.name
