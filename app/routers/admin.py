@@ -356,6 +356,117 @@ async def domains_buy(
     return resp
 
 
+# ─── Bulk domain → category fit ────────────────────────────────────────────
+
+@router.get("/domains/evaluate", response_class=HTMLResponse)
+async def domains_evaluate_form(
+    request: Request,
+    _: str = Depends(require_admin),
+):
+    return templates.TemplateResponse(
+        "admin/domains_evaluate.html",
+        {"request": request, "categories": all_categories()},
+    )
+
+
+@router.post("/domains/evaluate", response_class=HTMLResponse)
+async def domains_evaluate_run(
+    request: Request,
+    domains_raw: str = Form(""),
+    _: str = Depends(require_admin),
+):
+    import re
+
+    candidates = []
+    seen: set[str] = set()
+    for line in domains_raw.splitlines():
+        s = line.strip().lower()
+        s = re.sub(r"^https?://", "", s)
+        s = s.split("/")[0].lstrip("www.")
+        if not s or s not in seen:
+            if s and "." in s:
+                seen.add(s)
+                candidates.append(s)
+    if not candidates:
+        return HTMLResponse('<div class="p-3 text-slate-500">Keine Domains erkannt.</div>')
+    if len(candidates) > 60:
+        return HTMLResponse(
+            f'<div class="p-3 text-red-700">Max 60 pro Batch ({len(candidates)} übergeben).</div>',
+            status_code=400,
+        )
+    from app.services.category_fit import score_bulk
+
+    try:
+        fits = score_bulk(candidates)
+    except Exception as e:  # noqa: BLE001
+        log.exception("category fit failed")
+        return HTMLResponse(f'<div class="p-3 text-red-700">Fehler: {e}</div>', status_code=502)
+    await budget.track("anthropic", "clustering", note=f"category_fit {len(candidates)}")
+    return templates.TemplateResponse(
+        "admin/domains_evaluate_results.html",
+        {"request": request, "fits": fits, "categories": all_categories()},
+    )
+
+
+@router.post("/domains/{domain_id}/category")
+async def domain_set_category(
+    domain_id: int,
+    category: str = Form(""),
+    _: str = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    d = await session.get(Domain, domain_id)
+    if not d:
+        raise HTTPException(status_code=404)
+    d.category = category or None
+    await session.commit()
+    return RedirectResponse(url="/domains", status_code=303)
+
+
+# ─── Interlink recommender ─────────────────────────────────────────────────
+
+@router.get("/interlink", response_class=HTMLResponse)
+async def interlink_view(
+    request: Request,
+    _: str = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    from app.services.interlink import recommend
+
+    suggestions = await recommend(session, limit=150)
+    return templates.TemplateResponse(
+        "admin/interlink.html",
+        {"request": request, "suggestions": suggestions},
+    )
+
+
+@router.post("/interlink/apply")
+async def interlink_apply(
+    source_post_id: int = Form(...),
+    anchor: str = Form(...),
+    target_url: str = Form(""),
+    _: str = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    """Append a [[BACKLINK:anchor]] token to the source post's markdown
+    and regenerate so the pipeline resolves it — cheapest way to apply
+    a recommendation without hand-editing."""
+    post = await session.get(Post, source_post_id)
+    if not post:
+        raise HTTPException(status_code=404)
+    placeholder = f"\n\n[[BACKLINK:{anchor.strip()}]]\n"
+    post.body_markdown = (post.body_markdown or "") + placeholder
+    post.status = PostStatus.PENDING
+    await session.commit()
+    content_q.enqueue(
+        "app.jobs.content.generate_post_job",
+        post.id,
+        post.title,
+        job_timeout=900,
+    )
+    return RedirectResponse(url="/interlink", status_code=303)
+
+
 # ─── Expired-domain finder ─────────────────────────────────────────────────
 
 @router.get("/expired", response_class=HTMLResponse)

@@ -1,0 +1,57 @@
+{% from "admin/_partials.html" import category_badge, sev_badge %}
+<div class="bg-white rounded-lg shadow overflow-hidden">
+  <div class="px-4 py-3 border-b text-sm">
+    {{ fits|length }} Domains klassifiziert
+  </div>
+  <table class="w-full text-sm">
+    <thead class="bg-slate-100 text-slate-600 uppercase text-xs tracking-wide">
+      <tr>
+        <th class="text-left px-3 py-2">Domain</th>
+        <th class="text-left px-3 py-2">Top-Kategorie</th>
+        <th class="text-right px-3 py-2">Score</th>
+        <th class="text-left px-3 py-2">Confidence</th>
+        <th class="text-left px-3 py-2">Begründung</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for f in fits %}
+      <tr class="border-t border-slate-100 align-top">
+        <td class="px-3 py-2 font-mono text-xs">{{ f.domain }}</td>
+        <td class="px-3 py-2">{{ category_badge(f.top_category, categories) }}</td>
+        <td class="px-3 py-2 text-right font-semibold
+          {% if f.top_score >= 75 %}text-emerald-700
+          {% elif f.top_score >= 50 %}text-amber-700
+          {% else %}text-slate-500{% endif %}">{{ f.top_score }}</td>
+        <td class="px-3 py-2">
+          {{ sev_badge(
+            'green' if f.confidence == 'high' else ('yellow' if f.confidence == 'medium' else 'gray'),
+            f.confidence
+          ) }}
+        </td>
+        <td class="px-3 py-2 text-xs text-slate-600">{{ f.reasoning }}</td>
+      </tr>
+      <tr class="border-t border-slate-100">
+        <td colspan="5" class="px-3 py-2 bg-slate-50">
+          <div class="flex flex-wrap gap-1">
+            {% for key, score in f.scores.items() | sort(attribute=1, reverse=True) %}
+              {% if score > 0 %}
+              <span class="text-xs px-2 py-0.5 rounded
+                {% if score >= 70 %}bg-emerald-100 text-emerald-800
+                {% elif score >= 40 %}bg-amber-100 text-amber-800
+                {% else %}bg-slate-100 text-slate-500{% endif %}">
+                {{ key }} {{ score }}
+              </span>
+              {% endif %}
+            {% endfor %}
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<p class="text-xs text-slate-500 mt-3">
+  Für existierende Domains: auf <a href="/domains" class="underline">/domains</a>
+  kannst du die Top-Kategorie direkt setzen. Für zukünftige Käufe: im
+  Kauf-Flow auswählen.
+</p>

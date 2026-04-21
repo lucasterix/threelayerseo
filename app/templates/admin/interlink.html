@@ -1,0 +1,77 @@
+{% extends "admin/base.html" %}
+{% from "admin/_partials.html" import sev_badge %}
+{% block title %}Interlink · ThreeLayerSEO{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-semibold mb-2">Interlink-Empfehlungen</h1>
+<p class="text-sm text-slate-500 mb-6 max-w-3xl">
+  Cross-Site-Backlink-Vorschläge über das gesamte Netzwerk. Nur aufwärts
+  (Tier-1 → Tier-2/3, Tier-2 → Tier-3). Scoring: Tier-Sprung + Kategorie-Match +
+  Token-Overlap − Sättigungs-Penalty für Ziele mit bereits ≥10 eingehenden Links.
+</p>
+
+{% if suggestions %}
+<div class="bg-white rounded-lg shadow overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-slate-100 text-slate-600 uppercase text-xs tracking-wide">
+      <tr>
+        <th class="text-right px-3 py-2 w-12">Score</th>
+        <th class="text-left px-3 py-2">Source Post (Tier)</th>
+        <th class="text-left px-3 py-2">Target Site (Tier)</th>
+        <th class="text-left px-3 py-2">Reason</th>
+        <th class="text-left px-3 py-2">Anchor-Vorschlag</th>
+        <th class="text-right px-3 py-2">Aktion</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in suggestions %}
+      <tr class="border-t border-slate-100 align-top">
+        <td class="px-3 py-2 text-right font-semibold
+          {% if s.score >= 70 %}text-emerald-700
+          {% elif s.score >= 40 %}text-amber-700
+          {% else %}text-slate-500{% endif %}">{{ s.score }}</td>
+        <td class="px-3 py-2">
+          <a href="/posts/{{ s.source_post_id }}" class="text-sky-700 hover:underline">
+            {{ s.source_title }}
+          </a>
+          <div class="text-xs text-slate-500 font-mono">{{ s.source_domain }} · T{{ s.source_tier }}</div>
+        </td>
+        <td class="px-3 py-2">
+          <a href="/sites/{{ s.target_site_id }}" class="text-sky-700 hover:underline">
+            {{ s.target_domain }}
+          </a>
+          <div class="text-xs text-slate-500">T{{ s.target_tier }}
+            {% if s.target_category %} · {{ s.target_category }}{% endif %}
+          </div>
+        </td>
+        <td class="px-3 py-2 text-xs text-slate-600">{{ s.reason }}</td>
+        <td class="px-3 py-2 text-xs font-mono">{{ s.suggested_anchor }}</td>
+        <td class="px-3 py-2 text-right">
+          <form method="post" action="/interlink/apply" class="inline">
+            <input type="hidden" name="source_post_id" value="{{ s.source_post_id }}">
+            <input type="hidden" name="anchor" value="{{ s.suggested_anchor }}">
+            <button class="text-xs bg-emerald-600 text-white px-2 py-1 rounded hover:bg-emerald-700">
+              Anwenden
+            </button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<p class="text-xs text-slate-500 mt-4 max-w-3xl">
+  „Anwenden" hängt einen <code>[[BACKLINK:anchor]]</code>-Platzhalter an
+  den Markdown-Body des Source-Posts und requeued die komplette Generation.
+  Der Tier-aware Backlink-Resolver wählt dann das tatsächliche Ziel aus —
+  meistens der im Vorschlag genannte, aber wenn die Velocity-Regel
+  eingreift, nimmt er einen passenden Bruder auf demselben Tier.
+</p>
+{% else %}
+<div class="bg-white rounded-lg shadow p-8 text-center text-slate-500">
+  Noch keine Empfehlungen. Sobald du Tier-1 oder Tier-2 Sites mit publizierten
+  Posts hast und gleichzeitig Tier-2/Tier-3-Sites aktiv sind, entstehen hier
+  Vorschläge automatisch.
+</div>
+{% endif %}
+{% endblock %}

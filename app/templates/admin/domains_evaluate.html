@@ -1,0 +1,30 @@
+{% extends "admin/base.html" %}
+{% block title %}Domain-Eval · ThreeLayerSEO{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-semibold mb-2">Bulk Domain-Category-Fit</h1>
+<p class="text-sm text-slate-500 mb-6 max-w-3xl">
+  Claude Haiku bewertet jede Domain gegen alle 13 Kategorien (0–100), pickt
+  die beste Passung und begründet. Gut für:
+</p>
+<ul class="text-sm text-slate-600 mb-6 list-disc pl-5 max-w-3xl space-y-1">
+  <li>Auto-Kategorie beim Bulk-Import von Expired-Listen</li>
+  <li>Portfolio-Check ob deine existierenden Domains sauber getaggt sind</li>
+  <li>Validierung einer geplanten Bulk-Kauf-Liste („passt die für Healthcare?")</li>
+</ul>
+
+<form class="bg-white rounded-lg shadow p-5 space-y-4 mb-6"
+      hx-post="/domains/evaluate" hx-target="#eval-results" hx-indicator="#eval-busy">
+  <label class="block">
+    <span class="text-sm font-medium">Domains (einer pro Zeile, max 60)</span>
+    <textarea name="domains_raw" rows="10" required
+              class="mt-1 w-full border rounded px-3 py-2 font-mono text-xs"
+              placeholder="gesundheit-tipps.de&#10;pharma-ratgeber.com&#10;medical-lab.de"></textarea>
+  </label>
+  <div class="flex items-center gap-3">
+    <button class="bg-slate-900 text-white px-4 py-2 rounded text-sm hover:bg-slate-800">Bewerten</button>
+    <span id="eval-busy" class="htmx-indicator text-sm text-slate-500">Haiku klassifiziert …</span>
+  </div>
+</form>
+
+<div id="eval-results"></div>
+{% endblock %}
