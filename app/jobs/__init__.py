@@ -7,6 +7,7 @@ enqueues via ``from app.jobs.domains import register_domain_job`` etc.
 from app.jobs.domains import register_domain_job  # noqa: F401
 from app.jobs.deep_research import deep_research_job  # noqa: F401
 from app.jobs.content import (  # noqa: F401
+    generate_design_job,
     generate_homepage_job,
     generate_image_job,
     generate_legal_job,
@@ -15,3 +16,4 @@ from app.jobs.content import (  # noqa: F401
     publish_post_job,
     refresh_stale_job,
 )
+from app.jobs.audit import audit_post_job, audit_site_job  # noqa: F401

@@ -25,6 +25,7 @@
     .post-list img{width:60px;height:60px;object-fit:cover;border-radius:2px;flex-shrink:0}
     .pub{color:#999;font-size:.75rem}
   </style>
+  {% if site.custom_css %}<style>{{ site.custom_css | safe }}</style>{% endif %}
 </head>
 <body>
   {% if site.homepage_html %}

@@ -23,6 +23,7 @@
   {% if website_schema %}<script type="application/ld+json">{{ website_schema | tojson }}</script>{% endif %}
   {% if item_list_schema %}<script type="application/ld+json">{{ item_list_schema | tojson }}</script>{% endif %}
   <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+  {% if site.custom_css %}<style>{{ site.custom_css | safe }}</style>{% endif %}
 </head>
 <body class="bg-white text-slate-900 antialiased">
   <header class="max-w-4xl mx-auto px-6 py-10 border-b">

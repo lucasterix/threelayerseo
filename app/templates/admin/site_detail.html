@@ -65,6 +65,86 @@
   </div>
 </section>
 
+{# ─── SEO + Lighthouse-Proxy Audit ────────────────────────────────── #}
+<section id="audit" class="bg-white rounded-lg shadow p-5 mb-6">
+  <div class="flex items-center justify-between mb-4">
+    <div>
+      <h2 class="font-semibold">SEO &amp; Lighthouse-Marker</h2>
+      <p class="text-xs text-slate-500 mt-1">
+        Wird nach jedem Publish, Homepage- oder Design-Update automatisch neu gemessen.
+      </p>
+    </div>
+    <form method="post" action="/sites/{{ site.id }}/audit">
+      <button class="text-xs bg-slate-900 text-white px-3 py-1.5 rounded hover:bg-slate-700">
+        Jetzt re-auditieren
+      </button>
+    </form>
+  </div>
+
+  {% if latest_homepage_audit %}
+  {% set a = latest_homepage_audit %}
+  <div class="grid md:grid-cols-4 gap-4 mb-4">
+    {% for label, val in [('Overall', a.score), ('SEO', a.seo_score), ('Performance', a.perf_score), ('Accessibility', a.a11y_score)] %}
+    <div class="border rounded p-3">
+      <div class="text-xs uppercase tracking-wide text-slate-500">{{ label }}</div>
+      <div class="text-2xl font-semibold mt-1
+        {% if val >= 90 %}text-emerald-700
+        {% elif val >= 70 %}text-amber-700
+        {% else %}text-red-700{% endif %}">{{ val }}</div>
+    </div>
+    {% endfor %}
+  </div>
+  {% if a.issues %}
+  <details class="text-sm">
+    <summary class="cursor-pointer font-medium text-slate-700">{{ a.issues|length }} offene Issue(s) auf der Homepage</summary>
+    <ul class="mt-2 space-y-1">
+      {% for it in a.issues %}
+      <li class="flex gap-2 items-start">
+        <span class="inline-block w-12 text-xs px-1 py-0.5 rounded
+          {% if it.severity == 'fail' %}bg-red-100 text-red-800
+          {% elif it.severity == 'warn' %}bg-amber-100 text-amber-800
+          {% else %}bg-slate-100 text-slate-700{% endif %}">{{ it.severity }}</span>
+        <span class="font-mono text-xs text-slate-500 w-44 shrink-0">{{ it.code }}</span>
+        <span>{{ it.message }}{% if it.fix_hint %} <em class="text-slate-500">— {{ it.fix_hint }}</em>{% endif %}</span>
+      </li>
+      {% endfor %}
+    </ul>
+  </details>
+  {% else %}
+  <p class="text-sm text-emerald-700">Keine offenen Issues — alles grün.</p>
+  {% endif %}
+  {% else %}
+  <p class="text-sm text-slate-500">Noch kein Audit gelaufen.
+    Wird automatisch beim ersten Publish/Homepage-Generate ausgeführt.</p>
+  {% endif %}
+
+  {% if audits_recent and audits_recent|length > 1 %}
+  <details class="mt-4 text-xs">
+    <summary class="cursor-pointer text-slate-600">Verlauf (letzte {{ audits_recent|length }} Audits)</summary>
+    <table class="mt-2 w-full">
+      <thead class="text-slate-500">
+        <tr><th class="text-left">Wann</th><th class="text-left">Trigger</th><th class="text-left">URL</th>
+          <th>Overall</th><th>SEO</th><th>Perf</th><th>A11y</th><th>Issues</th></tr>
+      </thead>
+      <tbody>
+        {% for a in audits_recent %}
+        <tr class="border-t">
+          <td class="py-1">{{ a.created_at.strftime('%d.%m %H:%M') }}</td>
+          <td class="text-slate-500">{{ a.trigger }}</td>
+          <td class="font-mono truncate max-w-[20rem]" title="{{ a.url }}">{{ a.url }}</td>
+          <td class="text-center font-medium">{{ a.score }}</td>
+          <td class="text-center">{{ a.seo_score }}</td>
+          <td class="text-center">{{ a.perf_score }}</td>
+          <td class="text-center">{{ a.a11y_score }}</td>
+          <td class="text-center text-slate-500">{{ (a.issues or [])|length }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </details>
+  {% endif %}
+</section>
+
 <div class="grid md:grid-cols-2 gap-6">
 
   <section class="bg-white rounded-lg shadow p-5">

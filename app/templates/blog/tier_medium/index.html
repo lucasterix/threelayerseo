@@ -29,6 +29,7 @@
     .pub{color:#999;font-size:.8rem}
     footer{margin-top:3rem;padding-top:1rem;border-top:1px solid #ddd;color:#888;font-size:.85rem}
   </style>
+  {% if site.custom_css %}<style>{{ site.custom_css | safe }}</style>{% endif %}
 </head>
 <body>
   <header>

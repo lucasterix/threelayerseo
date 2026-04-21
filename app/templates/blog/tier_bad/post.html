@@ -27,6 +27,7 @@
     .meta{color:#888;font-size:.85rem;margin:0 0 1.2rem}
     footer{margin-top:3rem;padding-top:1rem;border-top:1px solid #ccc;color:#888;font-size:.85rem}
   </style>
+  {% if site.custom_css %}<style>{{ site.custom_css | safe }}</style>{% endif %}
 </head>
 <body>
   <p><a href="/">&larr; {{ site.title }}</a></p>

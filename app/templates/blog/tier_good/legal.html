@@ -6,6 +6,7 @@
   <meta name="robots" content="noindex,follow">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <script src="https://cdn.tailwindcss.com"></script>
+  {% if site.custom_css %}<style>{{ site.custom_css | safe }}</style>{% endif %}
 </head>
 <body class="bg-white text-slate-900 antialiased">
   <header class="max-w-3xl mx-auto px-6 py-6 border-b">

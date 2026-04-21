@@ -25,9 +25,14 @@ Websites. Erstelle ein vollständiges Impressum nach §5 TMG und §18(2)
 MStV in Markdown. Pflichtfelder:
 
 1. Überschrift "# Impressum"
-2. Abschnitt "## Angaben gemäß §5 TMG": Name, Anschrift, Kontakt
-3. Abschnitt "## Verantwortlich für den Inhalt nach §18 Abs. 2 MStV"
-   (derselbe wie oben, wenn nicht anders angegeben)
+2. Abschnitt "## Angaben gemäß §5 TMG":
+   - Name (Firmenbezeichnung inkl. Rechtsform wenn GmbH/UG/etc.)
+   - Falls GmbH/UG: "Vertreten durch: [Geschäftsführer-Name]"
+   - Anschrift (Straße + PLZ + Ort, so wie übergeben)
+   - Kontakt: E-Mail (und Telefon wenn vorhanden)
+   - Falls Handelsregister-Eintrag übergeben: Handelsregister-Zeile
+3. Abschnitt "## Verantwortlich für den Inhalt nach §18 Abs. 2 MStV" —
+   die natürliche Person (Geschäftsführer bei GmbH) mit Anschrift
 4. "## Haftungsausschluss" mit Unterabschnitten:
    - Haftung für Inhalte (§§ 8-10 TMG-konform formuliert)
    - Haftung für Links
@@ -39,6 +44,9 @@ MStV in Markdown. Pflichtfelder:
 Regeln:
 - Verwende NUR die übergebenen Daten. Erfinde nichts.
 - Keine Platzhalter ("[Name]") im Output.
+- Wenn OPERATOR_NAME eine GmbH/UG ist und OPERATOR_REPRESENTATIVE
+  gesetzt: unbedingt die "Vertreten durch"-Zeile einbauen (GmbH-
+  Pflichtangabe nach §5 TMG).
 - Keine Markenrechte Dritter erwähnen.
 - Konservative Haftungsklauseln, keine Werbesprache.
 - Nur Markdown, kein YAML, keine Code-Fences."""
@@ -86,6 +94,10 @@ def _operator_block() -> str:
         )
     lines = [
         f"Name: {settings.operator_name}",
+    ]
+    if settings.operator_representative:
+        lines.append(f"Vertreten durch: {settings.operator_representative}")
+    lines += [
         f"Anschrift: {settings.operator_address or '(nicht angegeben)'}",
         f"E-Mail: {settings.operator_email}",
     ]
@@ -93,6 +105,8 @@ def _operator_block() -> str:
         lines.append(f"Telefon: {settings.operator_phone}")
     if settings.operator_tax_id:
         lines.append(f"USt-ID: {settings.operator_tax_id}")
+    if settings.operator_register:
+        lines.append(f"Registereintrag: {settings.operator_register}")
     return "\n".join(lines)
 
 

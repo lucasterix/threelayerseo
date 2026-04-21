@@ -67,12 +67,14 @@ class Settings(BaseSettings):
     # ─── Site operator information (Impressum nach TMG §5 DE) ──────────────
     # Filled once in .env; applied to every auto-generated imprint. Per-site
     # overrides go via the admin form on site_detail.
-    operator_name: str = ""
+    operator_name: str = ""              # e.g. "Advanced Analytics GmbH"
     operator_address: str = ""           # "Musterstraße 1, 12345 Musterstadt"
     operator_email: str = ""
     operator_phone: str = ""
     operator_tax_id: str = ""            # e.g. "DE123456789" (optional)
     operator_contact_url: str = ""       # used for DSGVO contact line
+    operator_representative: str = ""    # required for GmbH §5 TMG: "Daniel Rupp"
+    operator_register: str = ""          # optional: "HRB 12345, Amtsgericht Göttingen"
 
     # ─── OpenAI ────────────────────────────────────────────────────────────
     # Used for every "simple" task (homepage copy, legal, classification,

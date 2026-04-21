@@ -39,6 +39,10 @@ POST_CREATE_MIGRATIONS = [
     "CREATE INDEX IF NOT EXISTS ix_money_sites_category ON money_sites(category)",
     "CREATE INDEX IF NOT EXISTS ix_money_sites_active ON money_sites(active)",
     "CREATE INDEX IF NOT EXISTS ix_pageviews_site_created ON pageviews(site_id, created_at DESC)",
+    "ALTER TABLE sites ADD COLUMN IF NOT EXISTS custom_css TEXT",
+    "ALTER TABLE sites ADD COLUMN IF NOT EXISTS design_tokens JSON",
+    "CREATE INDEX IF NOT EXISTS ix_seo_audits_site_created ON seo_audits(site_id, created_at DESC)",
+    "CREATE INDEX IF NOT EXISTS ix_seo_audits_post_created ON seo_audits(post_id, created_at DESC)",
 ]
 
 

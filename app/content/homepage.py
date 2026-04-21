@@ -41,9 +41,16 @@ def generate_homepage_markdown(
     tier: Tier,
     language: str = "de",
     wayback_context: str | None = None,
+    recent_posts: list[dict] | None = None,
 ) -> tuple[str, dict | None]:
-    # Light research to ground the copy in real topic framing. Skippable —
-    # for bare site bootstraps we tolerate a failure here.
+    """Generate homepage copy.
+
+    ``recent_posts`` — optional list of ``{title, meta_description,
+    primary_keyword}`` dicts for the site's already-published posts. If
+    provided, the prompt asks the homepage to reflect the actual
+    content the reader will find, so the homepage matures as the site
+    accumulates posts (organic growth).
+    """
     brief: dict | None
     try:
         brief = research(topic=topic, primary_keyword=topic, language=language)
@@ -69,6 +76,20 @@ def generate_homepage_markdown(
             "niche; drop outdated promotional language, dead URLs, specific "
             "brand/author names."
         )
+    if recent_posts:
+        lines = ["Bisher veröffentlichte Posts auf dieser Site (die Homepage soll auf sie verweisen):"]
+        for p in recent_posts[:15]:
+            title = p.get("title") or ""
+            desc = p.get("meta_description") or ""
+            lines.append(f"- {title}" + (f" — {desc[:140]}" if desc else ""))
+        lines.append(
+            "Baue die 'Was du hier findest'-Liste so, dass sie diese Themen-"
+            "Cluster widerspiegelt. Wenn offensichtliche Content-Cluster da "
+            "sind, gruppiere sie in Unterpunkten. Falls Posts eine klare "
+            "Experten-Positionierung nahelegen (z.B. bestimmte Region, "
+            "bestimmte Zielgruppe), übernimm das in der Intro."
+        )
+        user_parts.append("\n".join(lines))
     if brief:
         user_parts.append(f"Research brief:\n{brief}")
     user_parts.append("Produce the homepage Markdown now.")

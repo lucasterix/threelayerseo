@@ -122,15 +122,37 @@ async def _generate_homepage(site_id: int) -> None:
             wayback_text = None
             if site.domain.is_expired_purchase:
                 wayback_text = (site.domain.meta or {}).get("wayback_text")
+
+            # Pull existing published posts so the homepage can reflect
+            # the real content — this is what makes the homepage grow
+            # organically as we publish more.
+            posts_stmt = (
+                select(Post)
+                .where(Post.site_id == site.id, Post.status == PostStatus.PUBLISHED)
+                .order_by(Post.published_at.desc().nullslast())
+                .limit(15)
+            )
+            pubs = (await session.execute(posts_stmt)).scalars().all()
+            recent_posts = [
+                {
+                    "title": p.title,
+                    "meta_description": p.meta_description or "",
+                    "primary_keyword": p.primary_keyword,
+                }
+                for p in pubs
+            ]
+
             md, brief = generate_homepage_markdown(
                 topic=site.topic,
                 tier=Tier(site.domain.tier),
                 language=site.language,
                 wayback_context=wayback_text,
+                recent_posts=recent_posts or None,
             )
             site.homepage_html = render_homepage_html(md)
             meta = dict(site.meta or {})
             meta["homepage_markdown"] = md
+            meta["homepage_post_count"] = len(recent_posts)
             if brief:
                 meta["homepage_brief"] = brief
             if wayback_text:
@@ -139,11 +161,58 @@ async def _generate_homepage(site_id: int) -> None:
             site.status = SiteStatus.LIVE if prev_status == SiteStatus.DRAFT else prev_status
             await session.commit()
             await budget.track("openai", "homepage", site_id=site.id)
-            log.info("homepage generated for site %s (%s)", site.id, site.domain.name)
+            log.info(
+                "homepage generated for site %s (%s) with %d posts in context",
+                site.id, site.domain.name, len(recent_posts),
+            )
+            try:
+                from app.queue import content_q
+
+                content_q.enqueue_in(
+                    timedelta(seconds=20),
+                    "app.jobs.audit.audit_site_job", site.id, "homepage",
+                    job_timeout=120,
+                )
+            except Exception:  # noqa: BLE001
+                log.debug("audit enqueue skipped after homepage", exc_info=True)
         except Exception as e:  # noqa: BLE001
             site.status = prev_status
             await session.commit()
             log.exception("homepage generation failed for site %s: %s", site_id, e)
+
+
+async def _generate_design(site_id: int) -> None:
+    """LLM-generated design tokens + custom CSS per site."""
+    async with SessionLocal() as session:
+        stmt = select(Site).options(joinedload(Site.domain)).where(Site.id == site_id)
+        site = (await session.execute(stmt)).scalar_one_or_none()
+        if not site:
+            return
+        from app.services.design import generate_for_site
+
+        try:
+            tokens, css = generate_for_site(site)
+        except Exception:  # noqa: BLE001
+            log.warning("design generation failed for site %s", site_id, exc_info=True)
+            return
+        if not tokens or not css:
+            log.info("design generation returned nothing for site %s", site_id)
+            return
+        site.design_tokens = tokens
+        site.custom_css = css
+        await session.commit()
+        await budget.track("openai", "homepage", site_id=site_id, note="design")
+        log.info("design generated for site %s — style_note=%r", site_id, tokens.get("style_note"))
+        try:
+            from app.queue import content_q
+
+            content_q.enqueue_in(
+                timedelta(seconds=20),
+                "app.jobs.audit.audit_site_job", site_id, "design",
+                job_timeout=120,
+            )
+        except Exception:  # noqa: BLE001
+            log.debug("audit enqueue skipped after design", exc_info=True)
 
 
 async def _publish(post_id: int) -> None:
@@ -164,6 +233,7 @@ async def _publish(post_id: int) -> None:
         # refresh schema on publish so datePublished is accurate
         post.schema_json = article_schema(post.site, post, post.site.domain.name)
         await session.commit()
+        site_id = post.site_id
         host = post.site.domain.name
         indexnow_submit(host, [f"https://{host}/{post.slug}", f"https://{host}/"])
         try:
@@ -172,6 +242,42 @@ async def _publish(post_id: int) -> None:
             submit_sitemap(f"https://{host}/", f"https://{host}/sitemap.xml")
         except Exception:  # noqa: BLE001
             log.debug("GSC sitemap submit skipped", exc_info=True)
+
+        # Organic homepage evolution: every 3 published posts, requeue a
+        # homepage refresh so it pulls the newly published content into
+        # the "Was du hier findest"-list and positioning.
+        pub_count = (
+            await session.scalar(
+                select(func.count())
+                .select_from(Post)
+                .where(Post.site_id == site_id, Post.status == PostStatus.PUBLISHED)
+            )
+        ) or 0
+        if pub_count and pub_count % 3 == 0:
+            from app.queue import content_q
+
+            content_q.enqueue(
+                "app.jobs.content.generate_homepage_job", site_id, job_timeout=600
+            )
+            log.info("triggered organic homepage refresh for site %s (post #%d)", site_id, pub_count)
+
+        # Marketing-agency auto-audit: re-score the post + the homepage
+        # right after publish so SEO/Lighthouse markers stay current.
+        try:
+            from app.queue import content_q
+
+            content_q.enqueue_in(
+                timedelta(seconds=20),
+                "app.jobs.audit.audit_post_job", post_id, "publish",
+                job_timeout=120,
+            )
+            content_q.enqueue_in(
+                timedelta(seconds=25),
+                "app.jobs.audit.audit_site_job", site_id, "publish",
+                job_timeout=120,
+            )
+        except Exception:  # noqa: BLE001
+            log.debug("audit enqueue skipped after publish", exc_info=True)
 
 
 async def _generate_legal(site_id: int) -> None:
@@ -271,6 +377,10 @@ async def _launch_site(
         if settings.operator_name and settings.operator_email and not site.imprint_html:
             await _generate_legal(site_id)
 
+        # 3. Design (colors, typography, custom CSS) — individual per site
+        if not site.custom_css:
+            await _generate_design(site_id)
+
     # 3. Posts
     topics = post_topics or keywords
     now = datetime.now(timezone.utc) + timedelta(minutes=5)
@@ -341,6 +451,10 @@ def generate_post_job(post_id: int, topic: str) -> None:
 
 def generate_homepage_job(site_id: int) -> None:
     asyncio.run(_generate_homepage(site_id))
+
+
+def generate_design_job(site_id: int) -> None:
+    asyncio.run(_generate_design(site_id))
 
 
 def publish_post_job(post_id: int) -> None:

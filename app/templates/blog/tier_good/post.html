@@ -90,6 +90,7 @@
     .meta-bar { color: #64748b; font-size: .875rem; }
     .meta-bar .dot { opacity: .4; margin: 0 .5rem; }
   </style>
+  {% if site.custom_css %}<style>{{ site.custom_css | safe }}</style>{% endif %}
 </head>
 <body class="bg-white text-slate-900 antialiased">
   <nav class="border-b">

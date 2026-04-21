@@ -1074,6 +1074,19 @@ async def site_detail(
     health = await compute_site_health(session, site, site.domain)
     posts = sorted(site.posts, key=lambda p: p.created_at, reverse=True)
 
+    # Latest SEO/Lighthouse-proxy audits — homepage + most recent post audits.
+    from app.models import SeoAudit
+
+    audits_recent = list((await session.execute(
+        select(SeoAudit)
+        .where(SeoAudit.site_id == site.id)
+        .order_by(SeoAudit.created_at.desc())
+        .limit(10)
+    )).scalars().all())
+    latest_homepage_audit = next(
+        (a for a in audits_recent if a.post_id is None), None
+    )
+
     servers = list((
         await session.execute(select(Server).where(Server.status == ServerStatus.ACTIVE))
     ).scalars().all())
@@ -1102,8 +1115,46 @@ async def site_detail(
             "site_status_enum": SiteStatus,
             "gsc_perf": gsc_perf,
             "gsc_top": gsc_top,
+            "audits_recent": audits_recent,
+            "latest_homepage_audit": latest_homepage_audit,
         },
     )
+
+
+@router.post("/sites/{site_id}/audit")
+async def site_audit_now(
+    site_id: int,
+    _: str = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    """On-demand audit run (homepage + every published post)."""
+    from app.queue import content_q
+
+    site = await session.get(Site, site_id)
+    if not site:
+        raise HTTPException(status_code=404)
+    content_q.enqueue("app.jobs.audit.audit_site_job", site_id, "manual", job_timeout=120)
+    pubs = list((await session.execute(
+        select(Post.id).where(Post.site_id == site_id, Post.status == PostStatus.PUBLISHED)
+    )).scalars().all())
+    for pid in pubs:
+        content_q.enqueue("app.jobs.audit.audit_post_job", pid, "manual", job_timeout=120)
+    return RedirectResponse(url=f"/sites/{site_id}#audit", status_code=303)
+
+
+@router.post("/sites/{site_id}/design/regenerate")
+async def site_design_regenerate(
+    site_id: int,
+    _: str = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    from app.queue import content_q
+
+    site = await session.get(Site, site_id)
+    if not site:
+        raise HTTPException(status_code=404)
+    content_q.enqueue("app.jobs.content.generate_design_job", site_id, job_timeout=300)
+    return RedirectResponse(url=f"/sites/{site_id}", status_code=303)
 
 
 @router.post("/sites/{site_id}/update")

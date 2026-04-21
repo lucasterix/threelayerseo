@@ -9,6 +9,7 @@
     body{font-family:Arial,sans-serif;max-width:720px;margin:2rem auto;padding:0 1rem;color:#333;line-height:1.55}
     a{color:#06c}h1{font-size:1.6rem}h2{margin-top:1.6rem}
   </style>
+  {% if site.custom_css %}<style>{{ site.custom_css | safe }}</style>{% endif %}
 </head>
 <body>
   <p><a href="/">&larr; {{ site.title }}</a></p>

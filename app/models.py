@@ -104,6 +104,8 @@ class Site(Base):
     homepage_html: Mapped[str | None] = mapped_column(Text, nullable=True)
     imprint_html: Mapped[str | None] = mapped_column(Text, nullable=True)
     privacy_html: Mapped[str | None] = mapped_column(Text, nullable=True)
+    custom_css: Mapped[str | None] = mapped_column(Text, nullable=True)
+    design_tokens: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     meta: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -319,6 +321,38 @@ class ResearchRun(Base):
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class SeoAudit(Base):
+    """Per-URL SEO + Lighthouse-proxy audit snapshot.
+
+    A new row is inserted every time something changes on a page (publish,
+    homepage refresh, design change, refresh-stale rerun) so we keep a
+    score trajectory — same idea as a marketing agency that re-audits
+    after each touch.
+    """
+
+    __tablename__ = "seo_audits"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    site_id: Mapped[int] = mapped_column(
+        ForeignKey("sites.id", ondelete="CASCADE"), index=True
+    )
+    post_id: Mapped[int | None] = mapped_column(
+        ForeignKey("posts.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    url: Mapped[str] = mapped_column(String(2048))
+    score: Mapped[int] = mapped_column(Integer, index=True)            # 0..100 overall
+    seo_score: Mapped[int] = mapped_column(Integer, default=0)
+    perf_score: Mapped[int] = mapped_column(Integer, default=0)
+    a11y_score: Mapped[int] = mapped_column(Integer, default=0)
+    issues: Mapped[list | None] = mapped_column(JSON, nullable=True)   # list[{severity, code, message, fix_hint}]
+    passed: Mapped[list | None] = mapped_column(JSON, nullable=True)   # list[code]
+    metrics: Mapped[dict | None] = mapped_column(JSON, nullable=True)  # html_size_kb, blocking_resources, ...
+    trigger: Mapped[str] = mapped_column(String(32), default="publish") # publish/homepage/design/refresh/manual
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), index=True
+    )
 
 
 class MoneySite(Base):
