@@ -1,0 +1,79 @@
+{% extends "admin/base.html" %}
+{% from "admin/_partials.html" import category_select %}
+{% block title %}Transfer zu INWX · ThreeLayerSEO{% endblock %}
+{% block content %}
+
+<h1 class="text-2xl font-semibold mb-2">Domain zu INWX transferieren</h1>
+<p class="text-sm text-slate-500 mb-6 max-w-3xl">
+  Transfer = die <strong>Registrierung</strong> wechselt zu INWX. Dauer: 5–7 Tage.
+  Danach läuft die Domain komplett durch unseren Stack (Auto-DNS, GSC-Verify, CF-Onboard
+  alles automatisch). Die Transfer-Gebühr kostet typischerweise dasselbe wie ein Jahr
+  Renewal (ca. 6 € für <code>.de</code>) und verlängert die Domain automatisch um 1 Jahr.
+</p>
+
+<div class="bg-sky-50 border border-sky-200 rounded p-4 text-sm text-sky-900 mb-6 max-w-3xl">
+  <strong>Vorher beim aktuellen Registrar (z.B. GoDaddy, Namecheap, IONOS):</strong>
+  <ol class="list-decimal pl-5 mt-2 space-y-1">
+    <li>Domain <em>entsperren</em> (Transfer-Lock deaktivieren)</li>
+    <li>Auth-Info / EPP-Code / AuthCode abfragen (oft per E-Mail an den Owner)</li>
+    <li>Domain darf nicht innerhalb der letzten 60 Tage registriert worden sein</li>
+    <li>Whois-Kontakt sollte erreichbar sein (FOA-Mail)</li>
+  </ol>
+</div>
+
+<form method="post" action="/domains/transfer" class="bg-white rounded-lg shadow p-6 space-y-4 max-w-2xl">
+  <label class="block">
+    <span class="text-sm font-medium">Domain</span>
+    <input name="domain" required
+           class="mt-1 w-full border rounded px-3 py-2 font-mono"
+           placeholder="alte-blog-domain.de">
+  </label>
+
+  <label class="block">
+    <span class="text-sm font-medium">Auth-Info / EPP-Code</span>
+    <input name="authinfo" required type="password" autocomplete="off"
+           class="mt-1 w-full border rounded px-3 py-2 font-mono"
+           placeholder="aus der GoDaddy/Namecheap-Oberfläche">
+    <span class="text-xs text-slate-500 mt-1 block">
+      Wird nur für diesen INWX-API-Call verwendet und nicht dauerhaft gespeichert.
+    </span>
+  </label>
+
+  <div class="grid md:grid-cols-2 gap-4">
+    <label class="block text-sm">
+      <span class="text-slate-600">Tier</span>
+      <select name="tier" class="mt-1 w-full border rounded px-2 py-1">
+        {% for val, label in tier_choices %}
+        <option value="{{ val }}" {% if val == 1 %}selected{% endif %}>{{ val }} – {{ label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label class="block text-sm">
+      <span class="text-slate-600">Kategorie</span>
+      {{ category_select('category', 'healthcare', categories, allow_empty=True) }}
+    </label>
+  </div>
+
+  <div class="flex items-center gap-3 pt-2">
+    <button class="bg-slate-900 text-white px-4 py-2 rounded text-sm hover:bg-slate-800">
+      Transfer initiieren
+    </button>
+    <span class="text-xs text-slate-500">kostet typ. 6 € (.de) + 1 Jahr Verlängerung</span>
+  </div>
+</form>
+
+<details class="mt-6 bg-white rounded-lg shadow p-5 text-sm text-slate-700 max-w-3xl">
+  <summary class="cursor-pointer font-medium">Was danach passiert</summary>
+  <ol class="list-decimal pl-5 mt-3 space-y-1.5">
+    <li>INWX bestätigt die Transfer-Annahme sofort (Code 1000 oder 1001).</li>
+    <li>Der bisherige Registrar bekommt eine FOA-Mail, die der Owner binnen 5 Tagen bestätigen muss
+      (manche TLDs auch automatisch nach Ablauf).</li>
+    <li>Domain-Eintrag wird als <code>status=purchasing</code> in der Liste angelegt.</li>
+    <li>Bei Abschluss (INWX E-Mail) flippst du die Domain manuell auf ACTIVE —
+      oder der <em>Refresh-Scheduler</em> wird später regelmäßig bei INWX pollen (noch nicht gebaut).</li>
+    <li>Sobald ACTIVE: voller Workflow verfügbar (Launch Site, CF-Onboard automatisch, GSC
+      automatisch usw.).</li>
+  </ol>
+</details>
+
+{% endblock %}

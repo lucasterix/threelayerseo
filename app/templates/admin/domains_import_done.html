@@ -67,21 +67,37 @@
       <tr class="border-t">
         <td class="px-4 py-2 font-mono text-xs">{{ c.domain.name }}</td>
         <td class="px-4 py-2">
-          T{{ c.tier }}
-          {% if c.fit and c.fit.tier_confidence %}
-          {{ sev_badge(
-            'green' if c.fit.tier_confidence == 'high' else ('yellow' if c.fit.tier_confidence == 'medium' else 'gray'),
-            c.fit.tier_confidence
-          ) }}
+          <strong>T{{ c.tier }}</strong>
+          {% if c.tier_cls %}
+            {{ sev_badge(
+              'green' if c.tier_cls.confidence == 'high' else ('yellow' if c.tier_cls.confidence == 'medium' else 'gray'),
+              c.tier_cls.confidence
+            ) }}
+            <div class="text-xs text-slate-500 mt-0.5">Score {{ c.tier_cls.score }}/100</div>
+          {% elif c.fit and c.fit.tier_confidence %}
+            {{ sev_badge(
+              'green' if c.fit.tier_confidence == 'high' else ('yellow' if c.fit.tier_confidence == 'medium' else 'gray'),
+              c.fit.tier_confidence
+            ) }}
           {% endif %}
         </td>
         <td class="px-4 py-2">{{ category_badge(c.category, categories) }}</td>
         <td class="px-4 py-2 text-xs text-slate-500">
-          {% if c.fit %}
-            {% if c.fit.tier_reasoning %}<div><strong>Tier:</strong> {{ c.fit.tier_reasoning }}</div>{% endif %}
-            {% if c.fit.reasoning %}<div><strong>Kat.:</strong> {{ c.fit.reasoning }}</div>{% endif %}
-          {% else %}
-            <em>manuelle Zuweisung</em>
+          {% if c.tier_cls %}
+            <div><strong>Tier-Signale:</strong> {{ c.tier_cls.reasoning }}</div>
+            {% if c.tier_cls.backlink_rank %}
+              <div class="text-xs">Backlink-Rank {{ c.tier_cls.backlink_rank }}
+                {% if c.tier_cls.referring_domains %}· {{ c.tier_cls.referring_domains }} Ref-Domains{% endif %}
+              </div>
+            {% endif %}
+            {% if c.tier_cls.wayback_days %}
+              <div class="text-xs">{{ c.tier_cls.wayback_days }} Wayback-Tage</div>
+            {% endif %}
+          {% elif c.fit and c.fit.tier_reasoning %}
+            <div><strong>Tier (nur Name):</strong> {{ c.fit.tier_reasoning }}</div>
+          {% endif %}
+          {% if c.fit and c.fit.reasoning %}
+            <div class="mt-1"><strong>Kat.:</strong> {{ c.fit.reasoning }}</div>
           {% endif %}
         </td>
         <td class="px-4 py-2">

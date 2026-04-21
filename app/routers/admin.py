@@ -453,6 +453,95 @@ async def domains_buy(
     return resp
 
 
+# ─── Domain transfer (e.g. GoDaddy → INWX) ─────────────────────────────────
+
+@router.get("/domains/transfer", response_class=HTMLResponse)
+async def domains_transfer_form(
+    request: Request,
+    _: str = Depends(require_admin),
+):
+    return templates.TemplateResponse(
+        "admin/domains_transfer.html",
+        {
+            "request": request,
+            "categories": all_categories(),
+            "tier_choices": TIER_CHOICES,
+        },
+    )
+
+
+@router.post("/domains/transfer")
+async def domains_transfer_run(
+    request: Request,
+    domain: str = Form(...),
+    authinfo: str = Form(...),
+    tier: int = Form(1),
+    category: str = Form(""),
+    _: str = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    import re
+    from app.registrars.inwx import InwxRegistrar, InwxError
+    from app.services.servers import pick_least_full_server
+
+    name = re.sub(r"^https?://", "", domain.strip().lower()).split("/")[0].lstrip("www.")
+    if not name or "." not in name:
+        raise HTTPException(status_code=400, detail="ungültiger Domainname")
+
+    existing = await session.scalar(select(Domain).where(Domain.name == name))
+    if existing:
+        raise HTTPException(status_code=409, detail=f"{name} ist bereits im Portfolio")
+
+    try:
+        inwx = InwxRegistrar()
+        res = inwx.initiate_transfer(name, authinfo.strip(), period_years=1)
+    except InwxError as e:
+        raise HTTPException(status_code=502, detail=f"INWX-Fehler: {e}")
+    except Exception as e:  # noqa: BLE001
+        log.exception("INWX transfer initiation failed")
+        raise HTTPException(status_code=502, detail=f"Transfer fehlgeschlagen: {e}")
+
+    code = res.get("code")
+    if code not in (1000, 1001):
+        raise HTTPException(status_code=502, detail=f"INWX ablehnung: {res}")
+
+    try:
+        tier_val = Tier(int(tier))
+    except (ValueError, TypeError):
+        tier_val = Tier.BAD
+
+    srv = await pick_least_full_server(session)
+    d = Domain(
+        name=name,
+        tld=name.rsplit(".", 1)[-1],
+        tier=tier_val,
+        category=category or None,
+        status=DomainStatus.PURCHASING,
+        registrar="inwx",
+        notes=f"Transfer initiated — INWX code {code}. Check status in 5-7 days.",
+        meta={
+            "transfer": {
+                "initiated_at": datetime.now(timezone.utc).isoformat(),
+                "inwx_code": code,
+                "inwx_response": {k: v for k, v in res.items() if k != "resData"},
+            }
+        },
+    )
+    session.add(d)
+    await session.flush()
+    site = Site(
+        domain_id=d.id,
+        server_id=srv.id if srv else None,
+        title=name,
+        topic=name,
+        status=SiteStatus.DRAFT,
+    )
+    session.add(site)
+    await session.commit()
+
+    return RedirectResponse(url="/domains", status_code=303)
+
+
 # ─── External-domain import (owned at other registrars) ────────────────────
 
 @router.get("/domains/import", response_class=HTMLResponse)
@@ -514,14 +603,22 @@ async def domains_import_run(
 
     # 3. Classify (tier + category) if requested
     fit_map: dict = {}
+    tier_map: dict = {}
     if use_auto:
         from app.services.category_fit import score_bulk
+        from app.services.tier_classifier import enrich_and_classify
 
         try:
             fits = score_bulk(new_names)
             fit_map = {f.domain: f for f in fits}
         except Exception:  # noqa: BLE001
             log.warning("auto-classify failed", exc_info=True)
+        # SEO-enriched tier: wayback + DataForSEO backlinks per domain
+        try:
+            tier_rows = enrich_and_classify(new_names, name_fits=list(fit_map.values()))
+            tier_map = {d: t for d, t in zip(new_names, tier_rows)}
+        except Exception:  # noqa: BLE001
+            log.warning("tier_classifier failed", exc_info=True)
 
     # 4. Create Domain + Site rows
     created: list[dict] = []
@@ -529,9 +626,14 @@ async def domains_import_run(
     srv = await pick_least_full_server(session)
     for name in new_names:
         fit = fit_map.get(name)
-        tier_val: int = (
-            fit.tier_recommendation if (fit and fit.tier_recommendation) else default_tier
-        )
+        tier_cls = tier_map.get(name)
+        # Priority: SEO-enriched > LLM name-only > default
+        if tier_cls is not None:
+            tier_val = tier_cls.tier
+        elif fit and fit.tier_recommendation:
+            tier_val = fit.tier_recommendation
+        else:
+            tier_val = default_tier
         category = (fit.top_category if fit and use_auto else (default_category or None))
         tld = name.rsplit(".", 1)[-1]
 
@@ -559,6 +661,7 @@ async def domains_import_run(
             "domain": d,
             "site_id": site.id,
             "fit": fit,
+            "tier_cls": tier_cls,
             "tier": tier_val,
             "category": category,
         })

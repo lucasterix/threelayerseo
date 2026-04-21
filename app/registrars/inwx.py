@@ -123,6 +123,32 @@ class InwxRegistrar:
             )
         return res.get("code") == 1000
 
+    def initiate_transfer(
+        self,
+        domain: str,
+        authinfo: str,
+        *,
+        period_years: int = 1,
+        nameservers: list[str] | None = None,
+    ) -> dict:
+        """Start a domain transfer from another registrar to INWX.
+
+        Returns the raw INWX response dict. Success code is 1000 or 1001
+        (1001 = waiting for losing-registrar confirmation). The transfer
+        completes server-side 5-7 days later; the caller should persist
+        a Domain row with status=PURCHASING and re-check later.
+        """
+        params: dict = {
+            "domain": domain,
+            "authinfo": authinfo,
+            "period": f"{period_years}Y",
+        }
+        if nameservers:
+            params["ns"] = nameservers
+        with self._session() as c:
+            res = c.call_api(api_method="domain.transfer", method_params=params)
+        return res
+
     def set_txt_record(self, domain: str, hostname: str, value: str) -> bool:
         """Add a TXT record (e.g. Google Site Verification)."""
         with self._session() as c:

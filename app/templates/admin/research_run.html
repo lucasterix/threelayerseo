@@ -129,7 +129,8 @@
   <table class="w-full text-sm">
     <thead class="bg-slate-100 text-slate-600 uppercase text-xs tracking-wide">
       <tr>
-        <th class="text-right px-3 py-2 w-12">Score</th>
+        <th class="text-right px-3 py-2 w-12">Juice</th>
+        <th class="text-left px-3 py-2 w-12">Tier</th>
         <th class="text-left px-3 py-2">Domain</th>
         <th class="text-right px-3 py-2">Wayback-Tage</th>
         <th class="text-right px-3 py-2">Backlink-Rank</th>
@@ -144,9 +145,20 @@
           {% if e.score >= 100 %}text-emerald-700
           {% elif e.score >= 50 %}text-amber-700
           {% else %}text-slate-500{% endif %}">{{ e.score }}</td>
+        <td class="px-3 py-2">
+          {% if e.tier_recommendation %}
+          <span class="inline-block text-xs px-2 py-0.5 rounded
+            {% if e.tier_recommendation == 3 %}bg-emerald-100 text-emerald-800
+            {% elif e.tier_recommendation == 2 %}bg-cyan-100 text-cyan-800
+            {% else %}bg-slate-100 text-slate-700{% endif %}">T{{ e.tier_recommendation }}</span>
+          {% endif %}
+        </td>
         <td class="px-3 py-2 font-mono text-xs">
           <a href="https://web.archive.org/web/*/{{ e.name }}" target="_blank"
              class="hover:underline text-sky-700">{{ e.name }}</a>
+          {% if e.tier_reasoning %}
+          <div class="text-[10px] text-slate-400 font-sans">{{ e.tier_reasoning }}</div>
+          {% endif %}
         </td>
         <td class="px-3 py-2 text-right">{{ e.wayback_snapshots }}</td>
         <td class="px-3 py-2 text-right">{{ e.backlinks_rank if e.backlinks_rank is not none else '—' }}</td>

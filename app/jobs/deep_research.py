@@ -285,6 +285,16 @@ async def _run(run_id: int) -> None:
         juice_score = _score_expired(wb_count, bl)
         if juice_score < 20:
             continue
+        # SEO-informed tier recommendation: real history + backlinks
+        # → proper tier bucket (mostly T3 if authority is there)
+        from app.services.tier_classifier import classify as classify_tier
+
+        tier_cls = classify_tier(
+            name,
+            name_tier=None,
+            wayback_days=wb_count,
+            backlinks=bl,
+        )
         expired_out.append({
             "name": name,
             "wayback_snapshots": wb_count,
@@ -293,6 +303,9 @@ async def _run(run_id: int) -> None:
             "referring_domains": bl.referring_main_domains if bl else None,
             "score": juice_score,
             "last_visited": bl.last_visited if bl else None,
+            "tier_recommendation": tier_cls.tier,
+            "tier_score": tier_cls.score,
+            "tier_reasoning": tier_cls.reasoning,
         })
     expired_out.sort(key=lambda c: c["score"], reverse=True)
 
