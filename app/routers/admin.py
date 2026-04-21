@@ -505,6 +505,61 @@ async def research_start(
     return RedirectResponse(url=f"/research/{run.id}", status_code=303)
 
 
+# Specific /research/quick route must be registered BEFORE the catch-all
+# /research/{run_id} so FastAPI doesn't try to parse "quick" as int.
+
+@router.get("/research/quick", response_class=HTMLResponse)
+async def research_quick_form(
+    request: Request,
+    _: str = Depends(require_admin),
+):
+    return templates.TemplateResponse(
+        "admin/research_quick.html",
+        {
+            "request": request,
+            "categories": all_categories(),
+            "default_tlds": DEFAULT_TLDS,
+        },
+    )
+
+
+@router.post("/research/quick", response_class=HTMLResponse)
+async def research_quick_run(
+    request: Request,
+    seed: str = Form(...),
+    category_hint: str = Form(""),
+    tlds: list[str] = Form(default_factory=list),
+    _: str = Depends(require_admin),
+):
+    from app.services.auto_research import run as auto_run
+
+    try:
+        result = auto_run(
+            seed=seed.strip(),
+            category_hint=category_hint or None,
+            tlds=tlds or ["de", "com", "info"],
+        )
+    except Exception as e:  # noqa: BLE001
+        log.exception("auto research failed")
+        return HTMLResponse(
+            f'<div class="p-3 text-red-700">Fehler: {e}</div>', status_code=502
+        )
+    await budget.track(
+        "anthropic",
+        "clustering",
+        note=f"research_quick {result.seed} ({len(result.domain_candidates)} candidates)",
+    )
+    return templates.TemplateResponse(
+        "admin/research_results.html",
+        {
+            "request": request,
+            "result": result,
+            "tier_choices": TIER_CHOICES,
+            "categories": all_categories(),
+        },
+    )
+
+
 @router.get("/research/{run_id}", response_class=HTMLResponse)
 async def research_run_detail(
     run_id: int,
@@ -573,58 +628,7 @@ async def research_run_approve(
     return RedirectResponse(url="/domains", status_code=303)
 
 
-# ─── Legacy one-shot auto-research (synchronous, kept for quick probes) ────
-
-@router.get("/research/quick", response_class=HTMLResponse)
-async def research_quick_form(
-    request: Request,
-    _: str = Depends(require_admin),
-):
-    return templates.TemplateResponse(
-        "admin/research_quick.html",
-        {
-            "request": request,
-            "categories": all_categories(),
-            "default_tlds": DEFAULT_TLDS,
-        },
-    )
-
-
-@router.post("/research/quick", response_class=HTMLResponse)
-async def research_quick_run(
-    request: Request,
-    seed: str = Form(...),
-    category_hint: str = Form(""),
-    tlds: list[str] = Form(default_factory=list),
-    _: str = Depends(require_admin),
-):
-    from app.services.auto_research import run as auto_run
-
-    try:
-        result = auto_run(
-            seed=seed.strip(),
-            category_hint=category_hint or None,
-            tlds=tlds or ["de", "com", "info"],
-        )
-    except Exception as e:  # noqa: BLE001
-        log.exception("auto research failed")
-        return HTMLResponse(
-            f'<div class="p-3 text-red-700">Fehler: {e}</div>', status_code=502
-        )
-    await budget.track(
-        "anthropic",
-        "clustering",
-        note=f"research_quick {result.seed} ({len(result.domain_candidates)} candidates)",
-    )
-    return templates.TemplateResponse(
-        "admin/research_results.html",
-        {
-            "request": request,
-            "result": result,
-            "tier_choices": TIER_CHOICES,
-            "categories": all_categories(),
-        },
-    )
+# (quick routes moved up — above /research/{run_id})
 
 
 # ─── Bulk domain → category fit ────────────────────────────────────────────
