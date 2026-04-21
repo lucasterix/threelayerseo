@@ -447,6 +447,60 @@ async def domains_buy(
     return resp
 
 
+# ─── One-shot research orchestrator ────────────────────────────────────────
+
+@router.get("/research", response_class=HTMLResponse)
+async def research_form(
+    request: Request,
+    _: str = Depends(require_admin),
+):
+    return templates.TemplateResponse(
+        "admin/research.html",
+        {
+            "request": request,
+            "categories": all_categories(),
+            "default_tlds": DEFAULT_TLDS,
+        },
+    )
+
+
+@router.post("/research", response_class=HTMLResponse)
+async def research_run(
+    request: Request,
+    seed: str = Form(...),
+    category_hint: str = Form(""),
+    tlds: list[str] = Form(default_factory=list),
+    _: str = Depends(require_admin),
+):
+    from app.services.auto_research import run as auto_run
+
+    try:
+        result = auto_run(
+            seed=seed.strip(),
+            category_hint=category_hint or None,
+            tlds=tlds or ["de", "com", "info"],
+        )
+    except Exception as e:  # noqa: BLE001
+        log.exception("auto research failed")
+        return HTMLResponse(
+            f'<div class="p-3 text-red-700">Fehler: {e}</div>', status_code=502
+        )
+    await budget.track(
+        "anthropic",
+        "clustering",
+        note=f"auto_research {result.seed} ({len(result.domain_candidates)} candidates)",
+    )
+    return templates.TemplateResponse(
+        "admin/research_results.html",
+        {
+            "request": request,
+            "result": result,
+            "tier_choices": TIER_CHOICES,
+            "categories": all_categories(),
+        },
+    )
+
+
 # ─── Bulk domain → category fit ────────────────────────────────────────────
 
 @router.get("/domains/evaluate", response_class=HTMLResponse)
