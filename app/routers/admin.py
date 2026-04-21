@@ -29,7 +29,7 @@ from app.models import (
 )
 from app.queue import content_q, domains_q, publish_q, redis_conn
 from app.categories import all_categories, FEATURED_KEYS
-from app.models import Expense, KeywordCluster
+from app.models import Expense, KeywordCluster, ResearchRun
 from app.services import budget
 from app.services.domains import (
     DEFAULT_TLDS,
@@ -447,15 +447,141 @@ async def domains_buy(
     return resp
 
 
-# ─── One-shot research orchestrator ────────────────────────────────────────
+# ─── Deep research orchestrator (background job + approval) ────────────────
 
 @router.get("/research", response_class=HTMLResponse)
 async def research_form(
     request: Request,
     _: str = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
 ):
+    recent_runs = list(
+        (
+            await session.execute(
+                select(ResearchRun).order_by(ResearchRun.started_at.desc()).limit(15)
+            )
+        ).scalars().all()
+    )
     return templates.TemplateResponse(
         "admin/research.html",
+        {
+            "request": request,
+            "categories": all_categories(),
+            "default_tlds": DEFAULT_TLDS,
+            "recent_runs": recent_runs,
+        },
+    )
+
+
+@router.post("/research")
+async def research_start(
+    request: Request,
+    seed: str = Form(...),
+    category_hint: str = Form(""),
+    depth: str = Form("normal"),
+    tlds: list[str] = Form(default_factory=list),
+    _: str = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    if depth not in ("quick", "normal", "deep"):
+        depth = "normal"
+    chosen_tlds = tlds or ["de", "com", "info"]
+    run = ResearchRun(
+        seed=seed.strip(),
+        category_hint=category_hint or None,
+        depth=depth,
+        tlds=chosen_tlds,
+        status="queued",
+        progress_label="in der Warteschlange",
+        progress_pct=0,
+    )
+    session.add(run)
+    await session.commit()
+    content_q.enqueue(
+        "app.jobs.deep_research.deep_research_job",
+        run.id,
+        job_timeout=1800,
+    )
+    return RedirectResponse(url=f"/research/{run.id}", status_code=303)
+
+
+@router.get("/research/{run_id}", response_class=HTMLResponse)
+async def research_run_detail(
+    run_id: int,
+    request: Request,
+    _: str = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    run = await session.get(ResearchRun, run_id)
+    if not run:
+        raise HTTPException(status_code=404)
+    return templates.TemplateResponse(
+        "admin/research_run.html",
+        {
+            "request": request,
+            "run": run,
+            "tier_choices": TIER_CHOICES,
+            "categories": all_categories(),
+        },
+    )
+
+
+@router.post("/research/{run_id}/approve")
+async def research_run_approve(
+    run_id: int,
+    request: Request,
+    _: str = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    run = await session.get(ResearchRun, run_id)
+    if not run or run.status != "complete":
+        raise HTTPException(status_code=409, detail="run nicht fertig")
+
+    form = await request.form()
+    selected: list[str] = form.getlist("selected")
+    if not selected:
+        return RedirectResponse(url=f"/research/{run_id}", status_code=303)
+
+    # Lookup candidates for the ones the admin picked
+    by_name = {c.get("name"): c for c in (run.candidates or [])}
+    items: list[PurchaseItem] = []
+    for name in selected:
+        c = by_name.get(name)
+        if not c:
+            continue
+        tier_raw = form.get(f"tier[{name}]")
+        category_raw = form.get(f"category[{name}]") or c.get("category")
+        try:
+            tier = Tier(int(tier_raw)) if tier_raw else Tier.BAD
+        except (ValueError, TypeError):
+            tier = Tier.BAD
+        items.append(
+            PurchaseItem(
+                name=name,
+                tier=tier,
+                price_cents=c.get("price_cents"),
+                category=category_raw,
+                is_expired_purchase=False,
+            )
+        )
+
+    domain_ids = await queue_purchases(session, items)
+    for did in domain_ids:
+        domains_q.enqueue(
+            "app.jobs.domains.register_domain_job", did, job_timeout=300
+        )
+    return RedirectResponse(url="/domains", status_code=303)
+
+
+# ─── Legacy one-shot auto-research (synchronous, kept for quick probes) ────
+
+@router.get("/research/quick", response_class=HTMLResponse)
+async def research_quick_form(
+    request: Request,
+    _: str = Depends(require_admin),
+):
+    return templates.TemplateResponse(
+        "admin/research_quick.html",
         {
             "request": request,
             "categories": all_categories(),
@@ -464,8 +590,8 @@ async def research_form(
     )
 
 
-@router.post("/research", response_class=HTMLResponse)
-async def research_run(
+@router.post("/research/quick", response_class=HTMLResponse)
+async def research_quick_run(
     request: Request,
     seed: str = Form(...),
     category_hint: str = Form(""),
@@ -488,7 +614,7 @@ async def research_run(
     await budget.track(
         "anthropic",
         "clustering",
-        note=f"auto_research {result.seed} ({len(result.domain_candidates)} candidates)",
+        note=f"research_quick {result.seed} ({len(result.domain_candidates)} candidates)",
     )
     return templates.TemplateResponse(
         "admin/research_results.html",

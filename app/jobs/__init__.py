@@ -5,6 +5,7 @@ being importable by its dotted path (RQ calls jobs by string). The admin
 enqueues via ``from app.jobs.domains import register_domain_job`` etc.
 """
 from app.jobs.domains import register_domain_job  # noqa: F401
+from app.jobs.deep_research import deep_research_job  # noqa: F401
 from app.jobs.content import (  # noqa: F401
     generate_homepage_job,
     generate_image_job,

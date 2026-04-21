@@ -1,0 +1,45 @@
+{% extends "admin/base.html" %}
+{% from "admin/_partials.html" import category_select %}
+{% block title %}Quick-Research · ThreeLayerSEO{% endblock %}
+{% block content %}
+<div class="flex items-center justify-between mb-2 flex-wrap gap-2">
+  <h1 class="text-2xl font-semibold">Quick-Research</h1>
+  <a href="/research" class="text-xs text-sky-700 hover:underline">← Deep-Research (Background, mit Expired-Suche)</a>
+</div>
+<p class="text-sm text-slate-500 mb-6 max-w-3xl">
+  Synchroner One-Shot (30–60s): Seed → Keywords → Cluster → Domain-Ideen →
+  INWX → Category-Fit. Keine Expired-Suche, keine Backlinks-Scoring. Wenn du
+  eine echte Opportunity-Suche willst, nimm <a href="/research" class="underline">Deep-Research</a>.
+</p>
+
+<form method="post" action="/research/quick" class="bg-white rounded-lg shadow p-6 space-y-4">
+  <label class="block">
+    <span class="text-sm font-medium">Seed</span>
+    <input name="seed" required
+           class="mt-1 w-full border rounded px-3 py-2"
+           placeholder="z.B.: diabetes ernährung">
+  </label>
+
+  <label class="block">
+    <span class="text-sm font-medium">Kategorie-Hinweis (optional)</span>
+    {{ category_select('category_hint', 'healthcare', categories, allow_empty=True) }}
+  </label>
+
+  <div>
+    <label class="block text-sm font-medium mb-1">TLDs</label>
+    <div class="flex flex-wrap gap-3">
+      {% for tld in default_tlds %}
+      <label class="inline-flex items-center gap-1 text-sm">
+        <input type="checkbox" name="tlds" value="{{ tld }}"
+               {% if tld in ('de','com','info') %}checked{% endif %}>
+        .{{ tld }}
+      </label>
+      {% endfor %}
+    </div>
+  </div>
+
+  <button class="bg-slate-900 text-white px-4 py-2 rounded text-sm hover:bg-slate-800">
+    Quick-Run starten
+  </button>
+</form>
+{% endblock %}

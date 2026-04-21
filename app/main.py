@@ -31,6 +31,7 @@ POST_CREATE_MIGRATIONS = [
     "ALTER TABLE posts ADD COLUMN IF NOT EXISTS stylometric_profile VARCHAR(64)",
     "ALTER TABLE posts ADD COLUMN IF NOT EXISTS refresh_due_at TIMESTAMPTZ",
     "CREATE INDEX IF NOT EXISTS ix_posts_refresh_due_at ON posts(refresh_due_at)",
+    "CREATE INDEX IF NOT EXISTS ix_research_runs_status ON research_runs(status)",
 ]
 
 

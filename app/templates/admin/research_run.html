@@ -1,0 +1,211 @@
+{% extends "admin/base.html" %}
+{% from "admin/_partials.html" import category_badge, category_select, sev_badge %}
+{% block title %}Research: {{ run.seed }} · ThreeLayerSEO{% endblock %}
+{% block content %}
+
+{# Auto-refresh while running #}
+{% if run.status in ('queued','running') %}
+<meta http-equiv="refresh" content="5">
+{% endif %}
+
+<div class="flex items-center justify-between mb-6 flex-wrap gap-3">
+  <div>
+    <h1 class="text-2xl font-semibold">
+      <span class="text-slate-400">Run #{{ run.id }} ·</span> {{ run.seed }}
+    </h1>
+    <p class="text-sm text-slate-500 mt-1">
+      {{ run.depth }} ·
+      {% if run.category_hint %}{{ run.category_hint }} · {% endif %}
+      TLDs: {{ run.tlds | join(', ') }}
+      · {{ '%.2f €' | format(run.cost_cents/100) }}
+    </p>
+  </div>
+  <a href="/research" class="text-sm text-sky-700 hover:underline">← Alle Runs</a>
+</div>
+
+{# ─── Progress bar (only while running/queued) ──────────────────── #}
+{% if run.status in ('queued','running') %}
+<section class="bg-white rounded-lg shadow p-5 mb-6">
+  <div class="flex items-center justify-between mb-2">
+    <span class="text-sm font-medium">
+      {{ sev_badge('yellow', run.status) }}
+      <span class="ml-2">{{ run.progress_label }}</span>
+    </span>
+    <span class="text-sm text-slate-500">{{ run.progress_pct }} %</span>
+  </div>
+  <div class="w-full bg-slate-200 rounded h-2 overflow-hidden">
+    <div class="h-full bg-emerald-500 transition-all" style="width: {{ run.progress_pct }}%"></div>
+  </div>
+  <p class="text-xs text-slate-500 mt-3">Seite aktualisiert sich automatisch alle 5s.</p>
+</section>
+{% endif %}
+
+{% if run.status == 'failed' %}
+<div class="bg-red-50 border-l-4 border-red-500 p-4 text-sm text-red-800 mb-6">
+  <strong>Fehlgeschlagen.</strong>
+  {{ run.error or 'Details im Worker-Log.' }}
+</div>
+{% endif %}
+
+{# ─── Available candidates (approval grid) ────────────────────────── #}
+{% if run.status == 'complete' and run.candidates %}
+<section class="bg-white rounded-lg shadow overflow-hidden mb-6">
+  <div class="px-4 py-3 border-b text-sm flex items-center gap-4">
+    <span class="font-medium">🛒 Kaufbereit ({{ run.candidates|length }})</span>
+    <span class="text-slate-500">von {{ run.total_checked }} geprüft · {{ run.total_available }} verfügbar</span>
+    <button form="buy-form" type="submit"
+            class="ml-auto bg-emerald-600 text-white px-4 py-1.5 rounded text-sm hover:bg-emerald-700">
+      ✓ Ausgewählte kaufen
+    </button>
+  </div>
+
+  <form id="buy-form" method="post" action="/research/{{ run.id }}/approve">
+    <table class="w-full text-sm">
+      <thead class="bg-slate-100 text-slate-600 uppercase text-xs tracking-wide">
+        <tr>
+          <th class="px-3 py-2 w-8">
+            <input type="checkbox" onchange="document.querySelectorAll('input[name=selected]').forEach(e=>e.checked=this.checked)">
+          </th>
+          <th class="text-right px-3 py-2 w-12">Score</th>
+          <th class="text-left px-3 py-2">Domain</th>
+          <th class="text-right px-3 py-2">Preis</th>
+          <th class="text-left px-3 py-2">Category-Fit</th>
+          <th class="text-right px-3 py-2">Cat-Score</th>
+          <th class="text-left px-3 py-2">Conf.</th>
+          <th class="text-left px-3 py-2">Tier</th>
+          <th class="text-left px-3 py-2">Kategorie</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in run.candidates %}
+        <tr class="border-t border-slate-100">
+          <td class="px-3 py-2">
+            <input type="checkbox" name="selected" value="{{ c.name }}"
+                   {% if c.score >= 50 %}checked{% endif %}>
+          </td>
+          <td class="px-3 py-2 text-right font-semibold
+            {% if c.score >= 60 %}text-emerald-700
+            {% elif c.score >= 40 %}text-amber-700
+            {% else %}text-slate-500{% endif %}">{{ c.score }}</td>
+          <td class="px-3 py-2 font-mono">{{ c.name }}</td>
+          <td class="px-3 py-2 text-right">
+            {% if c.price_cents %}{{ '%.2f'|format(c.price_cents/100) }} {{ c.currency }}{% else %}—{% endif %}
+          </td>
+          <td class="px-3 py-2">{{ category_badge(c.category, categories) }}</td>
+          <td class="px-3 py-2 text-right">{{ c.category_score or 0 }}</td>
+          <td class="px-3 py-2">
+            {% if c.category_confidence %}
+            {{ sev_badge(
+              'green' if c.category_confidence == 'high' else ('yellow' if c.category_confidence == 'medium' else 'gray'),
+              c.category_confidence
+            ) }}
+            {% endif %}
+          </td>
+          <td class="px-3 py-2">
+            <select name="tier[{{ c.name }}]" class="border rounded px-2 py-1 text-sm">
+              {% for val, label in tier_choices %}
+              <option value="{{ val }}" {% if val == 1 %}selected{% endif %}>{{ val }}</option>
+              {% endfor %}
+            </select>
+          </td>
+          <td class="px-3 py-2">
+            {{ category_select('category[' ~ c.name ~ ']', c.category or (run.category_hint or 'healthcare'), categories, allow_empty=True) }}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </form>
+</section>
+{% endif %}
+
+{# ─── Expired opportunities (can't register now, but worth watching) #}
+{% if run.status == 'complete' and run.expired_opportunities %}
+<section class="bg-white rounded-lg shadow overflow-hidden mb-6">
+  <div class="px-4 py-3 border-b text-sm">
+    <span class="font-medium">🕵️ Drop-Watch ({{ run.expired_opportunities|length }})</span>
+    <span class="text-slate-500 ml-2">vergeben — aber Wayback-History + Backlink-Juice. Im Auge behalten, falls sie droppen.</span>
+  </div>
+  <table class="w-full text-sm">
+    <thead class="bg-slate-100 text-slate-600 uppercase text-xs tracking-wide">
+      <tr>
+        <th class="text-right px-3 py-2 w-12">Score</th>
+        <th class="text-left px-3 py-2">Domain</th>
+        <th class="text-right px-3 py-2">Wayback-Tage</th>
+        <th class="text-right px-3 py-2">Backlink-Rank</th>
+        <th class="text-right px-3 py-2">Ref.-Domains</th>
+        <th class="text-left px-3 py-2">Last Seen</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for e in run.expired_opportunities %}
+      <tr class="border-t border-slate-100">
+        <td class="px-3 py-2 text-right font-semibold
+          {% if e.score >= 100 %}text-emerald-700
+          {% elif e.score >= 50 %}text-amber-700
+          {% else %}text-slate-500{% endif %}">{{ e.score }}</td>
+        <td class="px-3 py-2 font-mono text-xs">
+          <a href="https://web.archive.org/web/*/{{ e.name }}" target="_blank"
+             class="hover:underline text-sky-700">{{ e.name }}</a>
+        </td>
+        <td class="px-3 py-2 text-right">{{ e.wayback_snapshots }}</td>
+        <td class="px-3 py-2 text-right">{{ e.backlinks_rank if e.backlinks_rank is not none else '—' }}</td>
+        <td class="px-3 py-2 text-right">{{ e.referring_domains if e.referring_domains is not none else '—' }}</td>
+        <td class="px-3 py-2 text-xs text-slate-500">{{ e.last_visited or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+{# ─── Keywords + Cluster summary (collapsible) ───────────────────── #}
+{% if run.status == 'complete' and (run.keywords or run.clusters) %}
+<details class="bg-white rounded-lg shadow p-5">
+  <summary class="font-semibold cursor-pointer">Keywords & Cluster aus diesem Run</summary>
+  <div class="grid md:grid-cols-2 gap-6 mt-4">
+    {% if run.keywords %}
+    <div>
+      <h3 class="text-sm font-medium mb-2">Keywords ({{ run.keywords|length }})</h3>
+      <div class="max-h-96 overflow-auto">
+        <table class="w-full text-xs">
+          <thead class="text-slate-500 uppercase tracking-wide">
+            <tr>
+              <th class="text-left py-1">Keyword</th>
+              <th class="text-right py-1">Vol.</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for k in run.keywords|sort(attribute='search_volume', reverse=True) %}
+            <tr class="border-t">
+              <td class="py-1 font-mono">{{ k.keyword }}</td>
+              <td class="py-1 text-right">{{ k.search_volume or '—' }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+    {% if run.clusters %}
+    <div>
+      <h3 class="text-sm font-medium mb-2">Cluster ({{ run.clusters|length }})</h3>
+      <ul class="space-y-2">
+        {% for c in run.clusters %}
+        <li class="border-l-4 border-sky-200 pl-3">
+          <div class="text-sm font-medium">{{ c.name }}
+            {% if c.intent %}<span class="ml-1 text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">{{ c.intent }}</span>{% endif %}
+          </div>
+          <div class="text-xs text-slate-500 mt-0.5 font-mono">
+            {{ (c.keywords | join(' · '))[:260] }}…
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+</details>
+{% endif %}
+
+{% endblock %}
