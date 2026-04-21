@@ -453,6 +453,129 @@ async def domains_buy(
     return resp
 
 
+# ─── External-domain import (owned at other registrars) ────────────────────
+
+@router.get("/domains/import", response_class=HTMLResponse)
+async def domains_import_form(
+    request: Request,
+    _: str = Depends(require_admin),
+):
+    return templates.TemplateResponse(
+        "admin/domains_import.html",
+        {
+            "request": request,
+            "categories": all_categories(),
+            "tier_choices": TIER_CHOICES,
+            "server_ip": settings.server_ip,
+        },
+    )
+
+
+@router.post("/domains/import", response_class=HTMLResponse)
+async def domains_import_run(
+    request: Request,
+    domains_raw: str = Form(""),
+    auto_classify: str = Form(""),
+    default_tier: int = Form(1),
+    default_category: str = Form(""),
+    _: str = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    import re
+
+    from app.services.servers import pick_least_full_server
+
+    use_auto = bool(auto_classify)
+
+    # 1. Parse + dedupe input
+    raw_names: list[str] = []
+    seen: set[str] = set()
+    for line in domains_raw.splitlines():
+        s = line.strip().lower()
+        s = re.sub(r"^https?://", "", s)
+        s = s.split("/")[0].lstrip("www.")
+        if s and "." in s and s not in seen:
+            seen.add(s)
+            raw_names.append(s)
+    if not raw_names:
+        return HTMLResponse(
+            '<div class="p-3 text-slate-500">Keine Domains erkannt.</div>'
+        )
+
+    # 2. Skip any already in DB
+    existing_stmt = select(Domain.name).where(Domain.name.in_(raw_names))
+    existing = {row[0] for row in (await session.execute(existing_stmt)).all()}
+    new_names = [n for n in raw_names if n not in existing]
+
+    if not new_names:
+        return HTMLResponse(
+            '<div class="p-3 text-amber-700">Alle Domains sind bereits im Portfolio.</div>'
+        )
+
+    # 3. Classify (tier + category) if requested
+    fit_map: dict = {}
+    if use_auto:
+        from app.services.category_fit import score_bulk
+
+        try:
+            fits = score_bulk(new_names)
+            fit_map = {f.domain: f for f in fits}
+        except Exception:  # noqa: BLE001
+            log.warning("auto-classify failed", exc_info=True)
+
+    # 4. Create Domain + Site rows
+    created: list[dict] = []
+    now = datetime.now(timezone.utc)
+    srv = await pick_least_full_server(session)
+    for name in new_names:
+        fit = fit_map.get(name)
+        tier_val: int = (
+            fit.tier_recommendation if (fit and fit.tier_recommendation) else default_tier
+        )
+        category = (fit.top_category if fit and use_auto else (default_category or None))
+        tld = name.rsplit(".", 1)[-1]
+
+        d = Domain(
+            name=name,
+            tld=tld,
+            tier=Tier(tier_val),
+            category=category,
+            status=DomainStatus.ACTIVE,
+            registrar="external",
+            registered_at=now,
+        )
+        session.add(d)
+        await session.flush()
+        site = Site(
+            domain_id=d.id,
+            server_id=srv.id if srv else None,
+            title=name,
+            topic=name,
+            status=SiteStatus.DRAFT,
+        )
+        session.add(site)
+        await session.flush()
+        created.append({
+            "domain": d,
+            "site_id": site.id,
+            "fit": fit,
+            "tier": tier_val,
+            "category": category,
+        })
+    await session.commit()
+
+    return templates.TemplateResponse(
+        "admin/domains_import_done.html",
+        {
+            "request": request,
+            "created": created,
+            "existing": sorted(existing),
+            "server_ip": settings.server_ip,
+            "categories": all_categories(),
+        },
+    )
+
+
 # ─── Deep research orchestrator (background job + approval) ────────────────
 
 @router.get("/research", response_class=HTMLResponse)
@@ -956,7 +1079,9 @@ async def site_cloudflare_onboard(
 
     nameservers = zone.get("name_servers") or []
     ns_switched = False
-    if nameservers:
+    # Only try INWX NS switch when the domain actually lives there.
+    # External domains: user flips the NS at their own registrar.
+    if nameservers and site.domain.registrar == "inwx":
         from app.registrars.inwx import InwxRegistrar
 
         try:

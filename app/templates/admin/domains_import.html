@@ -1,0 +1,77 @@
+{% extends "admin/base.html" %}
+{% from "admin/_partials.html" import category_select %}
+{% block title %}Domains importieren · ThreeLayerSEO{% endblock %}
+{% block content %}
+
+<h1 class="text-2xl font-semibold mb-2">Externe Domains importieren</h1>
+<p class="text-sm text-slate-500 mb-6 max-w-3xl">
+  Für Domains die du <strong>woanders registriert hast</strong>
+  (Namecheap, GoDaddy, Strato, IONOS, …) und jetzt durch unseren Renderer
+  bedienen willst. Kein INWX-Kauf, kein DNS-Auto-Setup — du bekommst nach
+  dem Anlegen eine DNS-Anleitung mit der IP, die du manuell beim externen
+  Registrar eintragen musst.
+</p>
+
+<div class="bg-amber-50 border border-amber-200 rounded p-4 text-sm text-amber-900 mb-6 max-w-3xl">
+  ⚠ Money-Sites sind hierfür <em>nicht</em> gedacht — die lässt du extern laufen und fügst sie
+  unter <a href="/money" class="underline">/money</a> als Linkziel hinzu.
+  Dieser Flow ist für Tier-1/2/3-Blog-Sites die von unserem Content-System
+  bespielt werden sollen.
+</div>
+
+<form method="post" action="/domains/import" class="bg-white rounded-lg shadow p-6 space-y-4 mb-6">
+  <label class="block">
+    <span class="text-sm font-medium">Domains (einer pro Zeile)</span>
+    <textarea name="domains_raw" rows="6" required
+              class="mt-1 w-full border rounded px-3 py-2 font-mono text-sm"
+              placeholder="alte-blog-domain.de&#10;nische-portal.com&#10;expired-kauf.info"></textarea>
+  </label>
+
+  <label class="inline-flex items-center gap-2 text-sm">
+    <input type="checkbox" name="auto_classify" value="1" checked>
+    Automatisch Tier + Kategorie zuweisen (OpenAI-Classifier, 1 Call für alle)
+  </label>
+
+  <div class="grid md:grid-cols-2 gap-4">
+    <label class="block text-sm">
+      <span class="text-slate-600">Fallback-Tier (wenn Auto-Klassifikation off oder unsicher)</span>
+      <select name="default_tier" class="mt-1 w-full border rounded px-2 py-1">
+        {% for val, label in tier_choices %}
+        <option value="{{ val }}" {% if val == 1 %}selected{% endif %}>{{ val }} – {{ label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label class="block text-sm">
+      <span class="text-slate-600">Fallback-Kategorie</span>
+      {{ category_select('default_category', 'healthcare', categories, allow_empty=True) }}
+    </label>
+  </div>
+
+  <button class="bg-slate-900 text-white px-4 py-2 rounded text-sm hover:bg-slate-800">
+    Importieren
+  </button>
+</form>
+
+<details class="bg-white rounded-lg shadow p-5 text-sm text-slate-700 max-w-3xl">
+  <summary class="cursor-pointer font-medium">Was passiert nach dem Import?</summary>
+  <ol class="list-decimal pl-5 mt-3 space-y-1.5 text-sm text-slate-600">
+    <li>Jede Domain wird als <code>registrar="external"</code>, <code>status=ACTIVE</code>
+      in deinem Portfolio angelegt.</li>
+    <li>Auto-Klassifikation schlägt Tier + Kategorie vor (überschreibbar).</li>
+    <li>Eine Draft-<code>Site</code> wird angelegt — der Renderer bedient sie dann.</li>
+    <li>Du bekommst die DNS-Anleitung:
+      <code class="bg-slate-100 px-1">A @ → {{ server_ip }}</code> und
+      <code class="bg-slate-100 px-1">A www → {{ server_ip }}</code>.
+      Manuell beim externen Registrar eintragen.</li>
+    <li>Sobald DNS propagiert (5 min – 24 h) kannst du auf der Site-Detail-Seite Homepage +
+      Posts generieren wie bei INWX-Domains.</li>
+    <li><strong>Cloudflare-Onboarding</strong> funktioniert — die CF-Zone wird angelegt
+      und proxied, aber die NS-Umstellung musst du selbst machen (du bekommst die CF-NS
+      angezeigt).</li>
+    <li><strong>GSC-Auto-Verifizierung</strong> überspringen wir (kann keinen TXT-Record
+      setzen). Füge die Domain manuell via Google-Search-Console hinzu oder wechsel
+      zuerst NS zu Cloudflare, dann läuft der normale Flow.</li>
+  </ol>
+</details>
+
+{% endblock %}

@@ -1,0 +1,110 @@
+{% extends "admin/base.html" %}
+{% from "admin/_partials.html" import category_badge, sev_badge %}
+{% block title %}Import abgeschlossen · ThreeLayerSEO{% endblock %}
+{% block content %}
+
+<h1 class="text-2xl font-semibold mb-2">{{ created|length }} Domain{{ 's' if created|length != 1 }} importiert</h1>
+<p class="text-sm text-slate-500 mb-6">
+  Jetzt DNS beim externen Registrar eintragen. Sobald A-Records auf
+  <span class="font-mono">{{ server_ip }}</span> zeigen, bedient unser Renderer die Domain.
+</p>
+
+{% if existing %}
+<div class="mb-6 bg-amber-50 border border-amber-200 rounded p-4 text-sm text-amber-900 max-w-3xl">
+  <strong>{{ existing|length }}</strong> Domain{{ 's' if existing|length != 1 }} übersprungen
+  (schon im Portfolio): <span class="font-mono">{{ existing | join(', ') }}</span>
+</div>
+{% endif %}
+
+{# ─── DNS instructions, one table for all ──────────────────────── #}
+<div class="bg-white rounded-lg shadow overflow-hidden mb-6">
+  <div class="bg-slate-900 text-slate-100 px-5 py-3 text-sm font-medium">
+    📋 DNS-Records die du manuell beim externen Registrar setzen musst
+  </div>
+  <table class="w-full text-sm">
+    <thead class="bg-slate-100 text-slate-600 uppercase text-xs tracking-wide">
+      <tr>
+        <th class="text-left px-4 py-2">Typ</th>
+        <th class="text-left px-4 py-2">Name / Host</th>
+        <th class="text-left px-4 py-2">Wert</th>
+        <th class="text-left px-4 py-2">TTL</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in created %}
+      <tr class="border-t font-mono text-xs">
+        <td class="px-4 py-2">A</td>
+        <td class="px-4 py-2">@  <span class="text-slate-400">({{ c.domain.name }})</span></td>
+        <td class="px-4 py-2">{{ server_ip }}</td>
+        <td class="px-4 py-2">3600</td>
+      </tr>
+      <tr class="border-t border-slate-50 font-mono text-xs">
+        <td class="px-4 py-2">A</td>
+        <td class="px-4 py-2">www  <span class="text-slate-400">({{ c.domain.name }})</span></td>
+        <td class="px-4 py-2">{{ server_ip }}</td>
+        <td class="px-4 py-2">3600</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{# ─── What was created ────────────────────────────────────────── #}
+<div class="bg-white rounded-lg shadow overflow-hidden">
+  <div class="px-4 py-3 border-b text-sm font-medium">Erstellte Sites</div>
+  <table class="w-full text-sm">
+    <thead class="bg-slate-50 text-slate-600 uppercase text-xs tracking-wide">
+      <tr>
+        <th class="text-left px-4 py-2">Domain</th>
+        <th class="text-left px-4 py-2">Tier</th>
+        <th class="text-left px-4 py-2">Kategorie</th>
+        <th class="text-left px-4 py-2">Classifier-Begründung</th>
+        <th class="text-left px-4 py-2">Site</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in created %}
+      <tr class="border-t">
+        <td class="px-4 py-2 font-mono text-xs">{{ c.domain.name }}</td>
+        <td class="px-4 py-2">
+          T{{ c.tier }}
+          {% if c.fit and c.fit.tier_confidence %}
+          {{ sev_badge(
+            'green' if c.fit.tier_confidence == 'high' else ('yellow' if c.fit.tier_confidence == 'medium' else 'gray'),
+            c.fit.tier_confidence
+          ) }}
+          {% endif %}
+        </td>
+        <td class="px-4 py-2">{{ category_badge(c.category, categories) }}</td>
+        <td class="px-4 py-2 text-xs text-slate-500">
+          {% if c.fit %}
+            {% if c.fit.tier_reasoning %}<div><strong>Tier:</strong> {{ c.fit.tier_reasoning }}</div>{% endif %}
+            {% if c.fit.reasoning %}<div><strong>Kat.:</strong> {{ c.fit.reasoning }}</div>{% endif %}
+          {% else %}
+            <em>manuelle Zuweisung</em>
+          {% endif %}
+        </td>
+        <td class="px-4 py-2">
+          <a href="/sites/{{ c.site_id }}" class="text-sky-700 hover:underline text-xs">Site öffnen →</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="mt-6 bg-sky-50 border border-sky-200 rounded p-4 text-sm text-sky-900 max-w-3xl">
+  <strong>Nächste Schritte:</strong>
+  <ol class="list-decimal pl-5 mt-2 space-y-1">
+    <li>A-Records oben beim externen Registrar setzen.</li>
+    <li>Nach DNS-Propagation: auf die Site-Detail-Seite gehen.</li>
+    <li>🚀 <strong>Launch Site</strong> klicken mit ein paar Keywords → Homepage + Legal + Posts
+      drippen automatisch.</li>
+    <li>Optional: Site-Detail → „Push to Cloudflare" → Orange-Cloud für Origin-IP-Verschleierung.
+      Dann zeigt dir das System die CF-Nameserver, die du manuell beim Registrar setzen musst.</li>
+    <li>Optional: Domain manuell in Google Search Console hinzufügen — unser SA kann den TXT-Record
+      nicht ohne INWX-Zugriff setzen.</li>
+  </ol>
+</div>
+
+{% endblock %}
