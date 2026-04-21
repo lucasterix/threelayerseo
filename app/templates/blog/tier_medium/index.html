@@ -3,17 +3,19 @@
 <head>
   <meta charset="utf-8">
   <title>{{ site.title }}</title>
-  <meta name="description" content="{{ site.topic }}">
+  <meta name="description" content="{{ site.homepage_description or site.topic }}">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="canonical" href="https://{{ request.url.hostname }}/">
   <link rel="alternate" type="application/rss+xml" title="{{ site.title }}" href="/rss.xml">
+  {% if site.favicon_path %}<link rel="icon" type="image/png" href="/media/{{ site.favicon_path }}">{% endif %}
   <meta property="og:type" content="website">
   <meta property="og:title" content="{{ site.title }}">
-  <meta property="og:description" content="{{ site.topic }}">
+  <meta property="og:description" content="{{ site.homepage_description or site.topic }}">
   <meta property="og:url" content="https://{{ request.url.hostname }}/">
   <meta property="og:site_name" content="{{ site.title }}">
-  {% if posts and posts[0].featured_image_path %}
-  <meta property="og:image" content="https://{{ request.url.hostname }}/media/{{ posts[0].featured_image_path }}">
+  {% set og_img = site.homepage_image_path or (posts[0].featured_image_path if posts and posts[0].featured_image_path else None) %}
+  {% if og_img %}
+  <meta property="og:image" content="https://{{ request.url.hostname }}/media/{{ og_img }}">
   <meta name="twitter:card" content="summary_large_image">
   {% endif %}
   {% if website_schema %}<script type="application/ld+json">{{ website_schema | tojson }}</script>{% endif %}
@@ -35,11 +37,12 @@
   <header>
     {% if site.homepage_html %}{{ site.homepage_html | safe }}{% else %}<h1>{{ site.title }}</h1><p>{{ site.topic }}</p>{% endif %}
   </header>
+  <main>
   <h2>Neueste Beiträge</h2>
   {% for p in posts %}
   <article class="{% if not p.featured_image_path %}no-img{% endif %}">
     {% if p.featured_image_path %}
-    <a href="/{{ p.slug }}"><img src="/media/{{ p.featured_image_path }}" alt=""></a>
+    <a href="/{{ p.slug }}"><img src="/media/{{ p.featured_image_path }}" alt="" width="160" height="110" loading="lazy"></a>
     {% endif %}
     <div>
       <h3><a href="/{{ p.slug }}">{{ p.title }}</a></h3>
@@ -50,6 +53,7 @@
     </div>
   </article>
   {% endfor %}
+  </main>
   <footer>
     <a href="/impressum">Impressum</a> · <a href="/datenschutz">Datenschutz</a> · <a href="/rss.xml">RSS</a>
   </footer>

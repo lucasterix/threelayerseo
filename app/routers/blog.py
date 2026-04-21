@@ -117,6 +117,31 @@ async def rss(request: Request, session: AsyncSession = Depends(get_session)):
     )
 
 
+@router.get("/favicon.ico", include_in_schema=False)
+@router.get("/favicon.png", include_in_schema=False)
+async def favicon(request: Request, session: AsyncSession = Depends(get_session)):
+    """Browser default favicon request — resolve host → site → png on disk.
+
+    Most browsers also pre-fetch /favicon.ico before HTML loads, so we
+    answer here directly with the file (not a redirect).
+    """
+    import os
+
+    from fastapi.responses import FileResponse
+
+    host = _host(request)
+    try:
+        site = await _site_for_host(host, session)
+    except HTTPException:
+        raise HTTPException(status_code=404)
+    if not site.favicon_path:
+        raise HTTPException(status_code=404)
+    full = os.path.join(settings.images_dir, site.favicon_path)
+    if not os.path.isfile(full):
+        raise HTTPException(status_code=404)
+    return FileResponse(full, media_type="image/png", headers={"Cache-Control": "public, max-age=86400"})
+
+
 @router.get("/{key}.txt", response_class=PlainTextResponse, include_in_schema=False)
 async def indexnow_key_file(key: str):
     """Serve <INDEXNOW_KEY>.txt at every domain root so IndexNow can verify

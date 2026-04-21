@@ -9,6 +9,8 @@
   {% if post.primary_keyword %}<meta name="keywords" content="{{ post.primary_keyword }}">{% endif %}
   <link rel="canonical" href="https://{{ request.url.hostname }}/{{ post.slug }}">
   <link rel="alternate" type="application/rss+xml" title="{{ site.title }}" href="/rss.xml">
+  {% if site.favicon_path %}<link rel="icon" type="image/png" href="/media/{{ site.favicon_path }}">
+  <link rel="apple-touch-icon" href="/media/{{ site.favicon_path }}">{% endif %}
 
   <meta property="og:type" content="article">
   <meta property="og:title" content="{{ post.title }}">
@@ -99,10 +101,11 @@
     </div>
   </nav>
 
+  <main>
   <article>
     {% if post.featured_image_path %}
     <figure class="max-w-5xl mx-auto px-6 mt-8">
-      <img src="/media/{{ post.featured_image_path }}" alt="{{ post.title }}" class="w-full rounded-xl">
+      <img src="/media/{{ post.featured_image_path }}" alt="{{ post.title }}" class="w-full rounded-xl" width="1024" height="1024">
     </figure>
     {% endif %}
 
@@ -128,6 +131,7 @@
       <div class="article-prose">{{ post.body_html | safe }}</div>
     </div>
   </article>
+  </main>
 
   <footer class="max-w-3xl mx-auto px-6 py-10 border-t text-sm text-slate-500">
     <a class="hover:text-slate-900" href="/impressum">Impressum</a>

@@ -41,6 +41,9 @@ POST_CREATE_MIGRATIONS = [
     "CREATE INDEX IF NOT EXISTS ix_pageviews_site_created ON pageviews(site_id, created_at DESC)",
     "ALTER TABLE sites ADD COLUMN IF NOT EXISTS custom_css TEXT",
     "ALTER TABLE sites ADD COLUMN IF NOT EXISTS design_tokens JSON",
+    "ALTER TABLE sites ADD COLUMN IF NOT EXISTS favicon_path VARCHAR(500)",
+    "ALTER TABLE sites ADD COLUMN IF NOT EXISTS homepage_description VARCHAR(500)",
+    "ALTER TABLE sites ADD COLUMN IF NOT EXISTS homepage_image_path VARCHAR(500)",
     "CREATE INDEX IF NOT EXISTS ix_seo_audits_site_created ON seo_audits(site_id, created_at DESC)",
     "CREATE INDEX IF NOT EXISTS ix_seo_audits_post_created ON seo_audits(post_id, created_at DESC)",
 ]

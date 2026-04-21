@@ -13,7 +13,8 @@ from sqlalchemy.orm import joinedload
 
 from app.db import SessionLocal
 from app.models import Post, PostStatus, SeoAudit, Site
-from app.services.seo_audit import audit_url, audit_to_dict
+from app.services.seo_audit import Issue, audit_url, audit_to_dict
+from app.services.seo_autofix import apply_autofixes
 
 log = logging.getLogger(__name__)
 
@@ -45,6 +46,16 @@ async def _audit_site(site_id: int, trigger: str = "homepage") -> None:
             return
         url = f"https://{site.domain.name}/"
         audit = audit_url(url)
+        # Inject the favicon-presence check using DB knowledge before
+        # persisting — keeps the audit service network-pure.
+        if not site.favicon_path:
+            audit.issues.append(Issue(
+                code="favicon-missing", severity="warn",
+                message="Site hat keinen Favicon gesetzt",
+                fix_hint="Favicon aus design_tokens generieren",
+            ))
+        else:
+            audit.passed.append("favicon-present")
         row = _persist(session, site.id, None, audit, trigger)
         await session.commit()
         log.info(
@@ -52,6 +63,12 @@ async def _audit_site(site_id: int, trigger: str = "homepage") -> None:
             site.id, trigger, row.score, row.seo_score, row.perf_score, row.a11y_score,
             len(row.issues or []),
         )
+        try:
+            notes = await apply_autofixes(session, row)
+            if notes:
+                log.info("autofix queued for site=%s: %s", site.id, notes)
+        except Exception:  # noqa: BLE001
+            log.warning("autofix dispatch failed for site %s", site.id, exc_info=True)
 
 
 async def _audit_post(post_id: int, trigger: str = "publish") -> None:
@@ -73,6 +90,12 @@ async def _audit_post(post_id: int, trigger: str = "publish") -> None:
             post.id, trigger, row.score, row.seo_score, row.perf_score, row.a11y_score,
             len(row.issues or []),
         )
+        try:
+            notes = await apply_autofixes(session, row)
+            if notes:
+                log.info("autofix queued for post=%s: %s", post.id, notes)
+        except Exception:  # noqa: BLE001
+            log.warning("autofix dispatch failed for post %s", post.id, exc_info=True)
 
 
 # ─── RQ entry points ──────────────────────────────────────────────────────

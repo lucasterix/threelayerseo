@@ -9,7 +9,11 @@ from slugify import slugify
 from sqlalchemy import func, select
 from sqlalchemy.orm import joinedload
 
-from app.content.homepage import generate_homepage_markdown, render_homepage_html
+from app.content.homepage import (
+    extract_meta_description,
+    generate_homepage_markdown,
+    render_homepage_html,
+)
 from app.content.pipeline import generate_post
 from app.db import SessionLocal
 from app.models import Domain, DomainStatus, Post, PostStatus, Site, SiteStatus, Tier
@@ -150,6 +154,16 @@ async def _generate_homepage(site_id: int) -> None:
                 recent_posts=recent_posts or None,
             )
             site.homepage_html = render_homepage_html(md)
+            site.homepage_description = extract_meta_description(md) or site.topic[:160]
+            # OG-image fallback: pick the most recent post's featured image
+            # so the homepage shares correctly. Updated organically as new
+            # posts come in (every 3rd publish triggers a homepage refresh).
+            featured = next(
+                (p for p in pubs if p.featured_image_path),
+                None,
+            )
+            if featured:
+                site.homepage_image_path = featured.featured_image_path
             meta = dict(site.meta or {})
             meta["homepage_markdown"] = md
             meta["homepage_post_count"] = len(recent_posts)
@@ -200,6 +214,16 @@ async def _generate_design(site_id: int) -> None:
             return
         site.design_tokens = tokens
         site.custom_css = css
+        # Favicon is keyed off the same palette so it always matches the
+        # design — generate it inline so a new site never lacks one.
+        try:
+            from app.services.favicon import generate_for_site as gen_favicon
+
+            fav = gen_favicon(site_id, site.title, tokens)
+            if fav:
+                site.favicon_path = fav
+        except Exception:  # noqa: BLE001
+            log.warning("favicon generation failed for site %s", site_id, exc_info=True)
         await session.commit()
         await budget.track("openai", "homepage", site_id=site_id, note="design")
         log.info("design generated for site %s — style_note=%r", site_id, tokens.get("style_note"))
@@ -455,6 +479,31 @@ def generate_homepage_job(site_id: int) -> None:
 
 def generate_design_job(site_id: int) -> None:
     asyncio.run(_generate_design(site_id))
+
+
+async def _generate_favicon(site_id: int) -> None:
+    """Standalone favicon (re)generator — used by the auto-fixer when an
+    audit reports `favicon-missing` and we don't want to redo the whole
+    design pipeline."""
+    async with SessionLocal() as session:
+        site = await session.get(Site, site_id)
+        if not site:
+            return
+        from app.services.favicon import generate_for_site as gen_favicon
+
+        try:
+            fav = gen_favicon(site_id, site.title, site.design_tokens)
+        except Exception:  # noqa: BLE001
+            log.warning("favicon (re)generation failed for site %s", site_id, exc_info=True)
+            return
+        if fav:
+            site.favicon_path = fav
+            await session.commit()
+            log.info("favicon (re)generated for site %s", site_id)
+
+
+def generate_favicon_job(site_id: int) -> None:
+    asyncio.run(_generate_favicon(site_id))
 
 
 def publish_post_job(post_id: int) -> None:

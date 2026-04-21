@@ -3,23 +3,26 @@
 <head>
   <meta charset="utf-8">
   <title>{{ site.title }}</title>
-  <meta name="description" content="{{ site.topic }}">
+  <meta name="description" content="{{ site.homepage_description or site.topic }}">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="canonical" href="https://{{ request.url.hostname }}/">
   <link rel="alternate" type="application/rss+xml" title="{{ site.title }}" href="/rss.xml">
+  {% if site.favicon_path %}<link rel="icon" type="image/png" href="/media/{{ site.favicon_path }}">
+  <link rel="apple-touch-icon" href="/media/{{ site.favicon_path }}">{% endif %}
   <meta property="og:type" content="website">
   <meta property="og:title" content="{{ site.title }}">
-  <meta property="og:description" content="{{ site.topic }}">
+  <meta property="og:description" content="{{ site.homepage_description or site.topic }}">
   <meta property="og:url" content="https://{{ request.url.hostname }}/">
   <meta property="og:site_name" content="{{ site.title }}">
   <meta property="og:locale" content="{{ 'de_DE' if site.language == 'de' else 'en_US' }}">
-  {% if posts and posts[0].featured_image_path %}
-  <meta property="og:image" content="https://{{ request.url.hostname }}/media/{{ posts[0].featured_image_path }}">
+  {% set og_img = site.homepage_image_path or (posts[0].featured_image_path if posts and posts[0].featured_image_path else None) %}
+  {% if og_img %}
+  <meta property="og:image" content="https://{{ request.url.hostname }}/media/{{ og_img }}">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:image" content="https://{{ request.url.hostname }}/media/{{ posts[0].featured_image_path }}">
+  <meta name="twitter:image" content="https://{{ request.url.hostname }}/media/{{ og_img }}">
   {% endif %}
   <meta name="twitter:title" content="{{ site.title }}">
-  <meta name="twitter:description" content="{{ site.topic }}">
+  <meta name="twitter:description" content="{{ site.homepage_description or site.topic }}">
   {% if website_schema %}<script type="application/ld+json">{{ website_schema | tojson }}</script>{% endif %}
   {% if item_list_schema %}<script type="application/ld+json">{{ item_list_schema | tojson }}</script>{% endif %}
   <script src="https://cdn.tailwindcss.com?plugins=typography"></script>

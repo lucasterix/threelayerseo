@@ -101,3 +101,39 @@ def generate_homepage_markdown(
 
 def render_homepage_html(markdown_text: str) -> str:
     return md_lib.markdown(markdown_text, extensions=["extra", "sane_lists"])
+
+
+def extract_meta_description(markdown_text: str) -> str:
+    """Pull a 110–160 char meta-description from the homepage markdown.
+
+    Strategy: grab the first non-heading paragraph (typically the tagline
+    directly under the H1), strip markdown, collapse whitespace, hard-cap
+    at 160 chars on a word boundary. Falls back to the first H1 if the
+    tagline is missing.
+    """
+    import re
+
+    fallback = ""
+    for raw in markdown_text.splitlines():
+        line = raw.strip()
+        if not line:
+            continue
+        if line.startswith("#"):
+            if not fallback:
+                fallback = re.sub(r"^#+\s*", "", line).strip()
+            continue
+        if line.startswith(("-", "*", ">", "|")):
+            continue
+        # First content paragraph wins.
+        text = re.sub(r"[*_`]", "", line)
+        text = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", text)
+        text = re.sub(r"\s+", " ", text).strip()
+        if len(text) >= 60:
+            break
+    else:
+        text = fallback
+
+    if len(text) <= 160:
+        return text
+    cut = text[:160].rsplit(" ", 1)[0]
+    return cut.rstrip(",;:") + "…"
