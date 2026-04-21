@@ -1,52 +1,63 @@
-"""Stage 1 of the content pipeline: research via OpenAI Deep Research.
+"""Stage 1 of the content pipeline: research brief for a blog post.
 
-Takes a topic/keyword and returns a structured JSON research brief: key
-facts, sources, suggested angle, outline. Output feeds ``content.writer``.
+Returns a structured JSON brief (summary, key_facts, outline, angle,
+serp_landscape) that feeds ``content.writer``.
+
+Uses the shared LLM helper → GPT-4o-mini (OpenAI) with Anthropic Haiku
+fallback. Originally this used OpenAI's Deep Research / Responses API
+with web_search_preview; that's gated behind a subscription tier we
+don't have yet, so the brief is compiled from the model's parametric
+knowledge. The writer is still told to stay grounded: no invented
+sources, no fabricated statistics.
 """
 from __future__ import annotations
 
-import json
 import logging
 
-from openai import OpenAI
-
-from app.config import settings
+from app.services.llm import LlmError, complete_json
 
 log = logging.getLogger(__name__)
 
-# Deep research model (light variant — faster, cheaper than o3-deep-research).
-DEEP_RESEARCH_MODEL = "o4-mini-deep-research-2025-06-26"
+SYSTEM_PROMPT = """You research blog-post briefs for German SEO content.
+Given a topic + primary keyword, compile a structured brief.
 
-SYSTEM_PROMPT = """You are a research assistant building a brief for a blog post.
-Return a JSON object with keys:
+Output a JSON object with exactly these keys:
 - summary (string, 2-3 sentences)
-- key_facts (list of {fact, source_url})
-- outline (list of section headings)
-- recommended_angle (string)
-- serp_landscape (string describing what already ranks)
-Respond ONLY with valid JSON, no markdown fences.
-"""
+- key_facts (array of {fact: string, source_url: string})
+  — pick only facts you are confident about. If you don't know a real
+  source, use "" for source_url rather than inventing one.
+- outline (array of section headings — 5-8 entries)
+- recommended_angle (string, 1-2 sentences — what angle the writer
+  should take to beat the existing SERP)
+- serp_landscape (string describing the kind of results that likely
+  already rank for the keyword)
+
+Return ONLY the JSON object. No prose, no code fences."""
 
 
 def research(topic: str, primary_keyword: str, language: str = "de") -> dict:
-    if not settings.openai_api_key:
-        raise RuntimeError("OPENAI_API_KEY not set")
-    client = OpenAI(api_key=settings.openai_api_key)
-    user_prompt = (
+    user = (
         f"Topic: {topic}\nPrimary keyword: {primary_keyword}\nLanguage: {language}\n"
-        "Run deep research and return the JSON brief."
+        "Compile the brief now."
     )
-    resp = client.responses.create(
-        model=DEEP_RESEARCH_MODEL,
-        input=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_prompt},
-        ],
-        tools=[{"type": "web_search_preview"}],
-    )
-    text = resp.output_text.strip()
     try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        log.warning("deep-research returned non-JSON, wrapping as summary")
-        return {"summary": text, "key_facts": [], "outline": [], "recommended_angle": "", "serp_landscape": ""}
+        data = complete_json(SYSTEM_PROMPT, user, max_tokens=2500, strict=False)
+    except LlmError as e:
+        log.warning("research LLM failed: %s", e)
+        return {
+            "summary": "",
+            "key_facts": [],
+            "outline": [],
+            "recommended_angle": "",
+            "serp_landscape": "",
+        }
+    if not isinstance(data, dict):
+        return {"summary": "", "key_facts": [], "outline": [], "recommended_angle": "", "serp_landscape": ""}
+    # Light shape normalisation so the writer sees a consistent object
+    return {
+        "summary": str(data.get("summary") or ""),
+        "key_facts": list(data.get("key_facts") or []),
+        "outline": list(data.get("outline") or []),
+        "recommended_angle": str(data.get("recommended_angle") or ""),
+        "serp_landscape": str(data.get("serp_landscape") or ""),
+    }
