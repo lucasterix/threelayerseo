@@ -9,23 +9,45 @@
 </head>
 <body class="bg-slate-50 text-slate-900 min-h-screen">
   <nav class="bg-slate-900 text-slate-100">
-    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center gap-5 flex-wrap">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center gap-4 flex-wrap">
       <a href="/" class="font-semibold">ThreeLayerSEO</a>
       <a href="/" class="text-slate-300 hover:text-white">Dashboard</a>
-      <a href="/domains" class="text-slate-300 hover:text-white">Domains</a>
-      <a href="/domains/search" class="text-slate-300 hover:text-white">Kaufen</a>
-      <a href="/domains/evaluate" class="text-slate-300 hover:text-white">Eval</a>
-      <a href="/expired" class="text-slate-300 hover:text-white">Expired</a>
-      <a href="/interlink" class="text-slate-300 hover:text-white">Interlink</a>
+
+      <div class="relative group">
+        <button class="text-slate-300 hover:text-white py-1">Research ▾</button>
+        <div class="absolute left-0 top-full bg-white text-slate-900 rounded shadow-lg py-1 min-w-[200px] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+          <a href="/research" class="block px-4 py-2 text-sm hover:bg-slate-100">✨ Auto-Research</a>
+          <div class="border-t my-1"></div>
+          <a href="/keywords" class="block px-4 py-2 text-sm hover:bg-slate-100">Keywords (Volumes)</a>
+          <a href="/keywords/cluster" class="block px-4 py-2 text-sm hover:bg-slate-100">Cluster</a>
+          <a href="/keywords/serp" class="block px-4 py-2 text-sm hover:bg-slate-100">SERP-Analyse</a>
+        </div>
+      </div>
+
+      <div class="relative group">
+        <button class="text-slate-300 hover:text-white py-1">Domains ▾</button>
+        <div class="absolute left-0 top-full bg-white text-slate-900 rounded shadow-lg py-1 min-w-[200px] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+          <a href="/domains" class="block px-4 py-2 text-sm hover:bg-slate-100">Portfolio</a>
+          <a href="/domains/search" class="block px-4 py-2 text-sm hover:bg-slate-100">Kaufen (Liste)</a>
+          <a href="/expired" class="block px-4 py-2 text-sm hover:bg-slate-100">Expired-Finder</a>
+          <a href="/domains/evaluate" class="block px-4 py-2 text-sm hover:bg-slate-100">Category-Eval</a>
+        </div>
+      </div>
+
       <a href="/sites" class="text-slate-300 hover:text-white">Sites</a>
       <a href="/calendar" class="text-slate-300 hover:text-white">Calendar</a>
-      <a href="/servers" class="text-slate-300 hover:text-white">Server</a>
-      <a href="/footprint" class="text-slate-300 hover:text-white">Footprint</a>
-      <a href="/keywords" class="text-slate-300 hover:text-white">Keywords</a>
-      <a href="/keywords/cluster" class="text-slate-300 hover:text-white">Cluster</a>
-      <a href="/keywords/serp" class="text-slate-300 hover:text-white">SERP</a>
-      <a href="/budget" class="text-slate-300 hover:text-white">Budget</a>
-      <a href="/integrations" class="text-slate-300 hover:text-white">Integrations</a>
+      <a href="/interlink" class="text-slate-300 hover:text-white">Interlink</a>
+
+      <div class="relative group">
+        <button class="text-slate-300 hover:text-white py-1">Infra ▾</button>
+        <div class="absolute left-0 top-full bg-white text-slate-900 rounded shadow-lg py-1 min-w-[200px] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+          <a href="/servers" class="block px-4 py-2 text-sm hover:bg-slate-100">Server</a>
+          <a href="/footprint" class="block px-4 py-2 text-sm hover:bg-slate-100">Footprint</a>
+          <a href="/budget" class="block px-4 py-2 text-sm hover:bg-slate-100">Budget</a>
+          <a href="/integrations" class="block px-4 py-2 text-sm hover:bg-slate-100">Integrations</a>
+        </div>
+      </div>
+
       <span class="ml-auto text-sm text-slate-400">{% block header_right %}{% endblock %}</span>
     </div>
   </nav>

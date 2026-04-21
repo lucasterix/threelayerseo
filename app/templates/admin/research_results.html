@@ -1,0 +1,160 @@
+{% extends "admin/base.html" %}
+{% from "admin/_partials.html" import category_badge, category_select, sev_badge %}
+{% block title %}Research: {{ result.seed }} · ThreeLayerSEO{% endblock %}
+{% block content %}
+
+<div class="flex items-center justify-between mb-6">
+  <div>
+    <h1 class="text-2xl font-semibold">Auto-Research: <span class="font-mono text-sky-700">{{ result.seed }}</span></h1>
+    {% if result.category_hint %}
+    <p class="text-sm text-slate-500 mt-1">Kategorie-Fokus: {{ result.category_hint }}</p>
+    {% endif %}
+  </div>
+  <a href="/research" class="text-sm text-sky-700 hover:underline">← Neuer Durchlauf</a>
+</div>
+
+{% set avail = result.domain_candidates | selectattr('available') | list %}
+{% set taken = result.domain_candidates | rejectattr('available') | list %}
+
+{# ─── Top: kaufbare Domains ────────────────────────────────────────── #}
+<section class="bg-white rounded-lg shadow overflow-hidden mb-6">
+  <div class="px-4 py-3 border-b text-sm flex items-center gap-4">
+    <span>{{ avail|length }} verfügbar · {{ taken|length }} vergeben</span>
+    {% if avail %}
+    <button form="buy-form" type="submit"
+            class="ml-auto bg-emerald-600 text-white px-4 py-1.5 rounded text-sm hover:bg-emerald-700">
+      Ausgewählte kaufen
+    </button>
+    {% endif %}
+  </div>
+
+  {% if avail %}
+  <form id="buy-form" method="post" action="/domains/buy">
+    <table class="w-full text-sm">
+      <thead class="bg-slate-100 text-slate-600 uppercase text-xs tracking-wide">
+        <tr>
+          <th class="px-3 py-2 w-8">
+            <input type="checkbox"
+              onchange="document.querySelectorAll('input[name=selected]').forEach(e=>e.checked=this.checked)" checked>
+          </th>
+          <th class="text-left px-3 py-2">Domain</th>
+          <th class="text-right px-3 py-2">Preis</th>
+          <th class="text-left px-3 py-2">Category-Fit</th>
+          <th class="text-right px-3 py-2">Score</th>
+          <th class="text-left px-3 py-2">Confidence</th>
+          <th class="text-left px-3 py-2">Tier</th>
+          <th class="text-left px-3 py-2">Kategorie (Kauf)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in avail %}
+        <tr class="border-t border-slate-100">
+          <td class="px-3 py-2"><input type="checkbox" name="selected" value="{{ c.name }}" checked></td>
+          <td class="px-3 py-2 font-mono">{{ c.name }}</td>
+          <td class="px-3 py-2 text-right">
+            {% if c.price_cents %}{{ '%.2f'|format(c.price_cents/100) }} {{ c.currency }}{% else %}—{% endif %}
+            <input type="hidden" name="price[{{ c.name }}]" value="{{ c.price_cents or '' }}">
+          </td>
+          <td class="px-3 py-2">{{ category_badge(c.category, categories) }}</td>
+          <td class="px-3 py-2 text-right font-semibold
+            {% if c.category_score >= 75 %}text-emerald-700
+            {% elif c.category_score >= 50 %}text-amber-700
+            {% else %}text-slate-500{% endif %}">{{ c.category_score }}</td>
+          <td class="px-3 py-2">
+            {% if c.category_confidence %}
+              {{ sev_badge(
+                'green' if c.category_confidence == 'high' else ('yellow' if c.category_confidence == 'medium' else 'gray'),
+                c.category_confidence
+              ) }}
+            {% endif %}
+          </td>
+          <td class="px-3 py-2">
+            <select name="tier[{{ c.name }}]" class="border rounded px-2 py-1 text-sm">
+              {% for val, label in tier_choices %}
+              <option value="{{ val }}" {% if val == 1 %}selected{% endif %}>{{ val }} – {{ label }}</option>
+              {% endfor %}
+            </select>
+          </td>
+          <td class="px-3 py-2">
+            {{ category_select('category[' ~ c.name ~ ']', c.category or (result.category_hint or 'healthcare'), categories, allow_empty=True) }}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </form>
+  {% else %}
+  <p class="px-4 py-8 text-center text-slate-500 text-sm">
+    Keine freien Domains in dieser Kombination. Anderen Seed oder mehr TLDs probieren.
+  </p>
+  {% endif %}
+
+  {% if taken %}
+  <details class="border-t border-slate-100">
+    <summary class="px-4 py-2 text-sm text-slate-500 cursor-pointer">
+      {{ taken|length }} bereits vergeben
+    </summary>
+    <ul class="px-4 py-2 text-xs text-slate-600 font-mono columns-2 md:columns-3 space-y-0.5">
+      {% for c in taken %}<li>{{ c.name }}</li>{% endfor %}
+    </ul>
+  </details>
+  {% endif %}
+</section>
+
+{# ─── Keywords ─────────────────────────────────────────────────────── #}
+<div class="grid md:grid-cols-2 gap-6 mb-6">
+  <section class="bg-white rounded-lg shadow p-5">
+    <h2 class="font-semibold mb-3">
+      Keywords ({{ result.keywords|length }})
+      {% if result.used_fallback_keywords %}
+      <span class="ml-2 text-xs px-2 py-0.5 rounded bg-amber-100 text-amber-800">Fallback: Haiku</span>
+      {% else %}
+      <span class="ml-2 text-xs px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">DataForSEO</span>
+      {% endif %}
+    </h2>
+    <table class="w-full text-sm">
+      <thead class="text-slate-500 text-xs uppercase tracking-wide">
+        <tr>
+          <th class="text-left py-1">Keyword</th>
+          <th class="text-right py-1">Volume</th>
+          <th class="text-right py-1">CPC</th>
+          <th class="text-right py-1">Comp.</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for k in result.keywords|sort(attribute='search_volume', reverse=True) %}
+        <tr class="border-t">
+          <td class="py-1 font-mono text-xs">{{ k.keyword }}</td>
+          <td class="py-1 text-right">{{ k.search_volume if k.search_volume is not none else '—' }}</td>
+          <td class="py-1 text-right">{{ '%.2f'|format(k.cpc) if k.cpc else '—' }}</td>
+          <td class="py-1 text-right">{{ '%.2f'|format(k.competition) if k.competition else '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  {# ─── Cluster ─────────────────────────────────────────────────── #}
+  <section class="bg-white rounded-lg shadow p-5">
+    <h2 class="font-semibold mb-3">Cluster ({{ result.clusters|length }})</h2>
+    {% if result.clusters %}
+    <ul class="space-y-3">
+      {% for c in result.clusters %}
+      <li class="border-l-4 border-sky-200 pl-3">
+        <div class="text-sm font-medium">
+          {{ c.name }}
+          {% if c.intent %}<span class="ml-2 text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">{{ c.intent }}</span>{% endif %}
+        </div>
+        <div class="text-xs text-slate-500 mt-1 font-mono">
+          {{ (c.keywords | join(' · '))[:300] }}{% if (c.keywords | join(' ')) | length > 300 %}…{% endif %}
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="text-sm text-slate-500">Keine Cluster generiert.</p>
+    {% endif %}
+  </section>
+</div>
+
+{% endblock %}

@@ -209,6 +209,90 @@ async def dashboard(
         )
     ).scalars().all()
 
+    now = datetime.now(timezone.utc)
+
+    # Scheduled-post forecast: next 7 days of drip-feed
+    next_7_scheduled = (
+        await session.execute(
+            select(Post)
+            .options(joinedload(Post.site).joinedload(Site.domain))
+            .where(
+                Post.scheduled_at.is_not(None),
+                Post.scheduled_at >= now,
+                Post.scheduled_at <= now + timedelta(days=7),
+                Post.status != PostStatus.PUBLISHED,
+            )
+            .order_by(Post.scheduled_at)
+            .limit(15)
+        )
+    ).scalars().all()
+
+    # Refresh queue depth
+    refresh_due = (
+        await session.scalar(
+            select(func.count()).select_from(Post).where(
+                Post.refresh_due_at.is_not(None),
+                Post.refresh_due_at <= now,
+                Post.status == PostStatus.PUBLISHED,
+            )
+        ) or 0
+    )
+    refresh_due_next_30 = (
+        await session.scalar(
+            select(func.count()).select_from(Post).where(
+                Post.refresh_due_at.is_not(None),
+                Post.refresh_due_at > now,
+                Post.refresh_due_at <= now + timedelta(days=30),
+                Post.status == PostStatus.PUBLISHED,
+            )
+        ) or 0
+    )
+    if refresh_due >= 5:
+        alerts.append({
+            "severity": "yellow",
+            "title": f"{refresh_due} Posts refresh-überfällig",
+            "body": "Der Refresh-Scheduler läuft alle 24h — oder manuell triggern.",
+            "link": "/refresh/start",
+        })
+
+    # Interlink opportunity count
+    interlink_count = 0
+    try:
+        from app.services.interlink import recommend as interlink_recommend
+
+        interlink_suggestions = await interlink_recommend(session, limit=200, max_per_source=3)
+        interlink_count = len(interlink_suggestions)
+    except Exception:  # noqa: BLE001
+        pass
+
+    # Budget this month + projection
+    this_month = await budget.month_totals(session, now.year, now.month)
+    days_in_month = (
+        datetime(now.year + (now.month == 12), (now.month % 12) + 1, 1, tzinfo=timezone.utc)
+        - datetime(now.year, now.month, 1, tzinfo=timezone.utc)
+    ).days
+    day_of_month = now.day
+    projected_month = (
+        int(this_month.total_cents / day_of_month * days_in_month) if day_of_month > 0 else 0
+    )
+
+    # Uncategorised domain warn
+    uncategorised_active = (
+        await session.scalar(
+            select(func.count()).select_from(Domain).where(
+                Domain.status == DomainStatus.ACTIVE,
+                Domain.category.is_(None),
+            )
+        ) or 0
+    )
+    if uncategorised_active >= 3:
+        alerts.append({
+            "severity": "yellow",
+            "title": f"{uncategorised_active} aktive Domains ohne Kategorie",
+            "body": "Auf /domains/evaluate einmal bulk-klassifizieren — hilft Interlink + Footprint.",
+            "link": "/domains/evaluate",
+        })
+
     return templates.TemplateResponse(
         "admin/index.html",
         {
@@ -223,6 +307,13 @@ async def dashboard(
             "fleet": fc,
             "expiring": expiring,
             "recent_domains": recent_domains,
+            "next_7_scheduled": next_7_scheduled,
+            "refresh_due": refresh_due,
+            "refresh_due_next_30": refresh_due_next_30,
+            "interlink_count": interlink_count,
+            "this_month_spend": this_month.total_cents,
+            "this_month_projected": projected_month,
+            "uncategorised_active": uncategorised_active,
         },
     )
 

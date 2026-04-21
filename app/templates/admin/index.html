@@ -3,7 +3,16 @@
 {% block title %}Dashboard · ThreeLayerSEO{% endblock %}
 {% block content %}
 
-<h1 class="text-2xl font-semibold mb-6">Operations</h1>
+<div class="flex items-center justify-between mb-6 flex-wrap gap-3">
+  <h1 class="text-2xl font-semibold">Operations</h1>
+  <div class="flex items-center gap-2">
+    <a href="/research" class="bg-emerald-600 text-white px-3 py-1.5 rounded text-sm hover:bg-emerald-700">✨ Auto-Research</a>
+    <a href="/domains/evaluate" class="bg-slate-700 text-white px-3 py-1.5 rounded text-sm hover:bg-slate-800">Category-Eval</a>
+    <a href="/interlink" class="bg-sky-600 text-white px-3 py-1.5 rounded text-sm hover:bg-sky-700">Interlink</a>
+    <a href="/refresh/start" onclick="event.preventDefault(); fetch('/refresh/start',{method:'POST'}).then(()=>location.reload())"
+       class="border border-slate-300 text-slate-700 px-3 py-1.5 rounded text-sm hover:bg-slate-50">Refresh triggern</a>
+  </div>
+</div>
 
 {# ─── 4-Pillar health bar ────────────────────────────────────────── #}
 <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
@@ -43,6 +52,31 @@
 </section>
 {% endif %}
 
+{# ─── Operational widgets ──────────────────────────────────────── #}
+<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+  <a href="/calendar" class="bg-white rounded-lg shadow p-4 hover:shadow-md transition">
+    <div class="text-xs uppercase tracking-wide text-slate-500">Scheduled · 7 Tage</div>
+    <div class="text-3xl font-semibold mt-1">{{ next_7_scheduled|length }}</div>
+    <div class="text-xs text-slate-500">drip-fed Posts in Queue</div>
+  </a>
+  <a href="/refresh/start" class="bg-white rounded-lg shadow p-4 hover:shadow-md transition">
+    <div class="text-xs uppercase tracking-wide text-slate-500">Refresh-Queue</div>
+    <div class="text-3xl font-semibold mt-1
+      {% if refresh_due >= 5 %}text-amber-700{% else %}text-slate-900{% endif %}">{{ refresh_due }}</div>
+    <div class="text-xs text-slate-500">überfällig · {{ refresh_due_next_30 }} nächste 30d</div>
+  </a>
+  <a href="/interlink" class="bg-white rounded-lg shadow p-4 hover:shadow-md transition">
+    <div class="text-xs uppercase tracking-wide text-slate-500">Interlink-Potenzial</div>
+    <div class="text-3xl font-semibold mt-1">{{ interlink_count }}</div>
+    <div class="text-xs text-slate-500">offene Empfehlungen</div>
+  </a>
+  <a href="/budget" class="bg-white rounded-lg shadow p-4 hover:shadow-md transition">
+    <div class="text-xs uppercase tracking-wide text-slate-500">Budget · Monat</div>
+    <div class="text-3xl font-semibold mt-1">{{ '%.2f €' | format(this_month_spend/100) }}</div>
+    <div class="text-xs text-slate-500">Prognose Monatsende: {{ '%.2f €' | format(this_month_projected/100) }}</div>
+  </a>
+</div>
+
 <div class="grid md:grid-cols-3 gap-6">
 
   {# ─── Tier overview ─────────────────────────────────────────── #}
@@ -70,7 +104,7 @@
     </div>
   </section>
 
-  {# ─── Infrastructure ────────────────────────────────────────── #}
+  {# ─── Server fleet ────────────────────────────────────────── #}
   <section class="bg-white rounded-lg shadow p-5">
     <div class="flex items-center justify-between mb-3">
       <h2 class="font-semibold">Server-Fleet</h2>
@@ -96,7 +130,7 @@
     {% else %}
       <p class="text-sm text-slate-500">
         Noch keine Server gepflegt.
-        <a href="/servers/new" class="text-sky-700 hover:underline">Ersten Server anlegen →</a>
+        <a href="/servers/new" class="text-sky-700 hover:underline">Ersten anlegen →</a>
       </p>
     {% endif %}
   </section>
@@ -129,6 +163,31 @@
     </table>
   </section>
 
+  {# ─── Next 7 days scheduled ──────────────────────────────── #}
+  <section class="bg-white rounded-lg shadow p-5">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="font-semibold">Nächste Veröffentlichungen</h2>
+      <a href="/calendar" class="text-xs text-sky-700 hover:underline">Calendar →</a>
+    </div>
+    {% if next_7_scheduled %}
+    <ul class="text-sm divide-y">
+      {% for p in next_7_scheduled %}
+      <li class="py-1.5 flex items-center gap-3">
+        <span class="text-xs text-slate-400 w-24 font-mono">{{ p.scheduled_at.strftime('%m-%d %H:%M') }}</span>
+        <a href="/posts/{{ p.id }}" class="text-sky-700 hover:underline flex-1 truncate">{{ p.title }}</a>
+        <span class="text-xs text-slate-400 font-mono">{{ p.site.domain.name }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="text-sm text-slate-500">Nichts geplant in den nächsten 7 Tagen.</p>
+    {% endif %}
+  </section>
+
+</div>
+
+<div class="grid md:grid-cols-2 gap-6 mt-6">
+
   {# ─── Expiring domains ───────────────────────────────────── #}
   <section class="bg-white rounded-lg shadow p-5">
     <h2 class="font-semibold mb-3">Ablaufende Domains (≤ 30 Tage)</h2>
@@ -146,30 +205,30 @@
     {% endif %}
   </section>
 
-</div>
+  {# ─── Recent domains ──────────────────────────────────────── #}
+  <section class="bg-white rounded-lg shadow p-5">
+    <h2 class="font-semibold mb-3">Letzte Domains</h2>
+    {% if recent_domains %}
+    <ul class="text-sm divide-y">
+      {% for d in recent_domains %}
+      <li class="py-2 flex items-center gap-3">
+        <span class="text-xs text-slate-400 w-16">{{ d.created_at.strftime('%m-%d %H:%M') }}</span>
+        <span class="font-mono text-xs flex-1">{{ d.name }}</span>
+        <span class="text-xs">T{{ d.tier.value }}</span>
+        {{ sev_badge(
+            'green' if d.status.value == 'active' else ('red' if d.status.value == 'failed' else ('yellow' if d.status.value in ('pending','purchasing') else 'gray')),
+            d.status.value
+        ) }}
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="text-sm text-slate-500">Noch keine Domains.
+      <a href="/research" class="text-sky-700 hover:underline">Auto-Research →</a>
+    </p>
+    {% endif %}
+  </section>
 
-{# ─── Recent activity ──────────────────────────────────────── #}
-<section class="mt-6 bg-white rounded-lg shadow p-5">
-  <h2 class="font-semibold mb-3">Letzte Domains</h2>
-  {% if recent_domains %}
-  <ul class="text-sm divide-y">
-    {% for d in recent_domains %}
-    <li class="py-2 flex items-center gap-3">
-      <span class="text-xs text-slate-400 w-16">{{ d.created_at.strftime('%m-%d %H:%M') }}</span>
-      <span class="font-mono text-xs flex-1">{{ d.name }}</span>
-      <span class="text-xs">Tier {{ d.tier.value }}</span>
-      {{ sev_badge(
-          'green' if d.status.value == 'active' else ('red' if d.status.value == 'failed' else ('yellow' if d.status.value in ('pending','purchasing') else 'gray')),
-          d.status.value
-      ) }}
-    </li>
-    {% endfor %}
-  </ul>
-  {% else %}
-  <p class="text-sm text-slate-500">Noch keine Domains.
-    <a href="/domains/search" class="text-sky-700 hover:underline">Jetzt welche kaufen →</a>
-  </p>
-  {% endif %}
-</section>
+</div>
 
 {% endblock %}

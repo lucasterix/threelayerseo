@@ -1,0 +1,55 @@
+{% extends "admin/base.html" %}
+{% from "admin/_partials.html" import category_select %}
+{% block title %}Auto-Research · ThreeLayerSEO{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-semibold mb-2">Auto-Research ✨</h1>
+<p class="text-sm text-slate-500 mb-6 max-w-3xl">
+  Ein Seed-Begriff — eine Nische, ein Hauptkeyword, ein Thema — und das System läuft den kompletten Funnel:
+</p>
+<ol class="text-sm text-slate-600 mb-6 list-decimal pl-5 max-w-3xl space-y-1">
+  <li><strong>Keywords expandieren</strong> via DataForSEO <code>keyword_ideas</code> (Fallback: Haiku-Brainstorm, 30 Begriffe)</li>
+  <li><strong>Clustern</strong> der Keywords in thematische Silos (Haiku)</li>
+  <li><strong>Domain-Namen erfinden</strong> — 15–20 Vorschläge passend zur Nische (Haiku, kuratiert: lesbar, max 1 Bindestrich)</li>
+  <li><strong>× TLDs</strong> — Cartesian-Produkt mit deiner TLD-Auswahl</li>
+  <li><strong>Bulk-Availability</strong> bei INWX</li>
+  <li><strong>Category-Fit-Score</strong> pro verfügbarer Domain (Haiku)</li>
+</ol>
+<p class="text-sm text-slate-500 mb-6 max-w-3xl">
+  Ergebnis: eine kaufbereite Tabelle, sortiert nach Verfügbarkeit → Kategorie-Score → Preis.
+  Dauer: ~30–60 Sekunden. Kosten: ~$0,02 (2× Haiku-Calls + DataForSEO + INWX gratis).
+</p>
+
+<form method="post" action="/research" class="bg-white rounded-lg shadow p-6 space-y-4">
+  <label class="block">
+    <span class="text-sm font-medium">Seed (ein Thema, eine Nische, ein Kernkeyword)</span>
+    <input name="seed" required
+           class="mt-1 w-full border rounded px-3 py-2"
+           placeholder="z.B.: diabetes ernährung, hundefutter bio, alternative medizin">
+  </label>
+
+  <label class="block">
+    <span class="text-sm font-medium">Kategorie-Hinweis (optional, schärft die Ergebnisse)</span>
+    {{ category_select('category_hint', 'healthcare', categories, allow_empty=True) }}
+  </label>
+
+  <div>
+    <label class="block text-sm font-medium mb-1">TLDs für Availability-Check</label>
+    <div class="flex flex-wrap gap-3">
+      {% for tld in default_tlds %}
+      <label class="inline-flex items-center gap-1 text-sm">
+        <input type="checkbox" name="tlds" value="{{ tld }}"
+               {% if tld in ('de','com','info') %}checked{% endif %}>
+        .{{ tld }}
+      </label>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="flex items-center gap-3">
+    <button class="bg-emerald-600 text-white px-5 py-2 rounded text-sm font-medium hover:bg-emerald-700">
+      ✨ Full-Funnel starten
+    </button>
+    <span class="text-xs text-slate-500">bis 60s · ca. $0,02 pro Durchlauf</span>
+  </div>
+</form>
+{% endblock %}
