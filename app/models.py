@@ -222,6 +222,30 @@ class Backlink(Base):
     )
 
 
+class Pageview(Base):
+    """Lightweight analytics event.
+
+    DSGVO-freundlich: keine IP, keine Cookies, kein User-Agent-Fingerprint —
+    nur Site/Post/Pfad/Referer für Content-Tracking. Bots werden im
+    Service-Layer gefiltert, bevor sie hier landen.
+    """
+
+    __tablename__ = "pageviews"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    site_id: Mapped[int | None] = mapped_column(
+        ForeignKey("sites.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    post_id: Mapped[int | None] = mapped_column(
+        ForeignKey("posts.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    path: Mapped[str] = mapped_column(String(200), index=True)
+    referer_host: Mapped[str | None] = mapped_column(String(200), nullable=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), index=True
+    )
+
+
 class Expense(Base):
     """Running tally of operational spend for the budget dashboard.
 

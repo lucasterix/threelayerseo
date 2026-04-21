@@ -52,6 +52,27 @@
 </section>
 {% endif %}
 
+{# ─── Traffic widgets (Pageviews) ───────────────────────────── #}
+<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+  <a href="/analytics" class="bg-white rounded-lg shadow p-4 hover:shadow-md transition">
+    <div class="text-xs uppercase tracking-wide text-slate-500">Besucher · 24h</div>
+    <div class="text-3xl font-semibold mt-1 text-sky-700">{{ pageview_totals.last_24h }}</div>
+    <div class="text-xs text-slate-500">aus dem Blog-Netzwerk</div>
+  </a>
+  <a href="/analytics" class="bg-white rounded-lg shadow p-4 hover:shadow-md transition">
+    <div class="text-xs uppercase tracking-wide text-slate-500">Besucher · 7 Tage</div>
+    <div class="text-3xl font-semibold mt-1">{{ pageview_totals.last_7d }}</div>
+  </a>
+  <a href="/analytics" class="bg-white rounded-lg shadow p-4 hover:shadow-md transition">
+    <div class="text-xs uppercase tracking-wide text-slate-500">Besucher · 30 Tage</div>
+    <div class="text-3xl font-semibold mt-1">{{ pageview_totals.last_30d }}</div>
+  </a>
+  <a href="/analytics" class="bg-white rounded-lg shadow p-4 hover:shadow-md transition">
+    <div class="text-xs uppercase tracking-wide text-slate-500">Besucher · All-Time</div>
+    <div class="text-3xl font-semibold mt-1">{{ pageview_totals.all_time }}</div>
+  </a>
+</div>
+
 {# ─── Operational widgets ──────────────────────────────────────── #}
 <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
   <a href="/calendar" class="bg-white rounded-lg shadow p-4 hover:shadow-md transition">

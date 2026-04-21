@@ -265,6 +265,11 @@ async def dashboard(
     except Exception:  # noqa: BLE001
         pass
 
+    # Pageview totals for the dashboard widget (cheap counts, no timeseries)
+    from app.services import analytics as analytics_svc
+
+    pageview_totals = await analytics_svc.totals(session)
+
     # Budget this month + projection
     this_month = await budget.month_totals(session, now.year, now.month)
     days_in_month = (
@@ -314,6 +319,7 @@ async def dashboard(
             "this_month_spend": this_month.total_cents,
             "this_month_projected": projected_month,
             "uncategorised_active": uncategorised_active,
+            "pageview_totals": pageview_totals,
         },
     )
 
@@ -1214,6 +1220,32 @@ async def post_detail(
         raise HTTPException(status_code=404)
     return templates.TemplateResponse(
         "admin/post_detail.html", {"request": request, "post": post}
+    )
+
+
+# ─── Analytics (pageview counter) ──────────────────────────────────────────
+
+@router.get("/analytics", response_class=HTMLResponse)
+async def analytics_view(
+    request: Request,
+    _: str = Depends(require_admin),
+    session: AsyncSession = Depends(get_session),
+):
+    from app.services import analytics as analytics_svc
+
+    t = await analytics_svc.totals(session)
+    series = await analytics_svc.daily_series(session, days=30)
+    pages = await analytics_svc.top_pages(session, days=30, limit=20)
+    sites_top = await analytics_svc.top_sites(session, days=30, limit=20)
+    return templates.TemplateResponse(
+        "admin/analytics.html",
+        {
+            "request": request,
+            "totals": t,
+            "series": series,
+            "top_pages": pages,
+            "top_sites": sites_top,
+        },
     )
 
 

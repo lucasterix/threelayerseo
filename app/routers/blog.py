@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse, Response
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
@@ -10,6 +10,7 @@ from sqlalchemy.orm import joinedload
 from app.config import settings
 from app.db import get_session
 from app.models import Domain, DomainStatus, Post, PostStatus, Site, SiteStatus
+from app.services import analytics as analytics_svc
 
 templates = Jinja2Templates(directory="app/templates")
 router = APIRouter()
@@ -159,13 +160,25 @@ async def privacy(request: Request, session: AsyncSession = Depends(get_session)
 # ─── Blog ──────────────────────────────────────────────────────────────────
 
 @router.get("/", response_class=HTMLResponse)
-async def home(request: Request, session: AsyncSession = Depends(get_session)):
+async def home(
+    request: Request,
+    bg: BackgroundTasks,
+    session: AsyncSession = Depends(get_session),
+):
     from app.services.schema import item_list_schema, website_schema
 
     host = _host(request)
     site = await _site_for_host(host, session)
     if site.status != SiteStatus.LIVE:
         raise HTTPException(status_code=404, detail="site not live yet")
+    bg.add_task(
+        analytics_svc.record,
+        site_id=site.id,
+        post_id=None,
+        path="/",
+        user_agent=request.headers.get("user-agent"),
+        referer=request.headers.get("referer"),
+    )
     posts_stmt = (
         select(Post)
         .where(Post.site_id == site.id, Post.status == PostStatus.PUBLISHED)
@@ -187,7 +200,12 @@ async def home(request: Request, session: AsyncSession = Depends(get_session)):
 
 
 @router.get("/{slug}", response_class=HTMLResponse)
-async def post_detail(slug: str, request: Request, session: AsyncSession = Depends(get_session)):
+async def post_detail(
+    slug: str,
+    request: Request,
+    bg: BackgroundTasks,
+    session: AsyncSession = Depends(get_session),
+):
     from app.services.schema import breadcrumb_schema
 
     host = _host(request)
@@ -200,6 +218,14 @@ async def post_detail(slug: str, request: Request, session: AsyncSession = Depen
     post = (await session.execute(stmt)).scalar_one_or_none()
     if not post:
         raise HTTPException(status_code=404, detail="post not found")
+    bg.add_task(
+        analytics_svc.record,
+        site_id=site.id,
+        post_id=post.id,
+        path=f"/{slug}",
+        user_agent=request.headers.get("user-agent"),
+        referer=request.headers.get("referer"),
+    )
     template = f"blog/tier_{site.domain.tier.name.lower()}/post.html"
     return templates.TemplateResponse(
         template,

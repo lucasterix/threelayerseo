@@ -38,6 +38,7 @@ POST_CREATE_MIGRATIONS = [
     "ALTER TABLE money_sites ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now() NOT NULL",
     "CREATE INDEX IF NOT EXISTS ix_money_sites_category ON money_sites(category)",
     "CREATE INDEX IF NOT EXISTS ix_money_sites_active ON money_sites(active)",
+    "CREATE INDEX IF NOT EXISTS ix_pageviews_site_created ON pageviews(site_id, created_at DESC)",
 ]
 
 
