@@ -545,7 +545,7 @@ async def research_quick_run(
             f'<div class="p-3 text-red-700">Fehler: {e}</div>', status_code=502
         )
     await budget.track(
-        "anthropic",
+        "openai",
         "clustering",
         note=f"research_quick {result.seed} ({len(result.domain_candidates)} candidates)",
     )
@@ -676,7 +676,7 @@ async def domains_evaluate_run(
     except Exception as e:  # noqa: BLE001
         log.exception("category fit failed")
         return HTMLResponse(f'<div class="p-3 text-red-700">Fehler: {e}</div>', status_code=502)
-    await budget.track("anthropic", "clustering", note=f"category_fit {len(candidates)}")
+    await budget.track("openai", "category-fit", note=f"{len(candidates)} domains")
     return templates.TemplateResponse(
         "admin/domains_evaluate_results.html",
         {"request": request, "fits": fits, "categories": all_categories()},
@@ -1475,7 +1475,7 @@ async def cluster_submit(
         )
         session.add(row)
     await session.commit()
-    await budget.track("anthropic", "clustering", note=f"{len(keywords)} keywords -> {len(clusters)}")
+    await budget.track("openai", "clustering", note=f"{len(keywords)} keywords -> {len(clusters)}")
     return RedirectResponse(url="/keywords/cluster", status_code=303)
 
 

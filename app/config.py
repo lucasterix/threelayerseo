@@ -74,6 +74,13 @@ class Settings(BaseSettings):
     operator_tax_id: str = ""            # e.g. "DE123456789" (optional)
     operator_contact_url: str = ""       # used for DSGVO contact line
 
+    # ─── OpenAI ────────────────────────────────────────────────────────────
+    # Used for every "simple" task (homepage copy, legal, classification,
+    # clustering, chart-planner, auto-research brainstorms). Writer stays
+    # on Anthropic because Opus 4.7 is quality-critical there.
+    # Daniel's OpenAI account has 1M free tokens/day via data-sharing.
+    openai_simple_model: str = "gpt-4o-mini"
+
     # ─── OpenAI Images (featured images) ────────────────────────────────────
     # dall-e-3 standard 1024x1024 = $0.040 / image, dall-e-2 = $0.020.
     # gpt-image-1 (low quality) is even cheaper at ~$0.011 if account has access.

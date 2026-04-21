@@ -1,34 +1,29 @@
-"""Bulk domain → category classifier.
+"""Bulk domain → category classifier (OpenAI).
 
-Given a list of domain names, ask Claude Haiku to score each against
-the full category catalog and suggest a best-fit label. Cheap (~$0.01
-for 60 domains) and deterministic enough for auto-tagging on bulk
-imports.
+Given a list of domain names, ask the LLM to score each against the
+full category catalog and suggest a best-fit label. Cheap (fits
+comfortably inside the 1M free tokens/day OpenAI grant) and
+deterministic enough for auto-tagging on bulk imports.
 """
 from __future__ import annotations
 
-import json
 import logging
 from dataclasses import dataclass
 
-from anthropic import Anthropic
-
 from app.categories import all_categories
-from app.config import settings
+from app.services.llm import complete_json
 
 log = logging.getLogger(__name__)
-
-MODEL = "claude-haiku-4-5-20251001"
 
 
 @dataclass
 class CategoryFit:
     domain: str
-    scores: dict[str, int]          # category_key -> 0..100
+    scores: dict[str, int]
     top_category: str
     top_score: int
     reasoning: str
-    confidence: str                 # "high" | "medium" | "low"
+    confidence: str
 
 
 def _build_prompt(domains: list[str]) -> tuple[str, str]:
@@ -44,10 +39,10 @@ ordne Scores von 0-100 zu jeder Kategorie zu, wähle die beste Kategorie
 ("top_category") und gib eine knappe Begründung. Confidence: "high" wenn
 eine Kategorie klar ≥70 ist, "medium" bei 40-70, "low" sonst.
 
-Ausgabe: JSON-Array, eine Zeile pro Eingabe-Domain, exakt in der Form:
-{{"domain": "...", "scores": {{"healthcare": 90, ...}}, "top_category": "healthcare", "top_score": 90, "reasoning": "...", "confidence": "high"}}
-
-Nur das JSON-Array, keine Prosa, keine Code-Fences."""
+Ausgabe: strikt JSON-Objekt mit einem Key "results" als Array.
+Jedes Array-Element hat exakt die Felder:
+{{"domain": "...", "scores": {{"healthcare": 90, ...}}, "top_category": "healthcare",
+  "top_score": 90, "reasoning": "...", "confidence": "high"}}"""
 
     user = "Domains:\n" + "\n".join(f"- {d}" for d in domains[:60])
     return system, user
@@ -56,39 +51,22 @@ Nur das JSON-Array, keine Prosa, keine Code-Fences."""
 def score_bulk(domains: list[str]) -> list[CategoryFit]:
     if not domains:
         return []
-    if not settings.anthropic_api_key:
-        raise RuntimeError("ANTHROPIC_API_KEY not set")
-
     system, user = _build_prompt(domains)
-    client = Anthropic(api_key=settings.anthropic_api_key)
     try:
-        resp = client.messages.create(
-            model=MODEL,
-            max_tokens=4096,
-            system=system,
-            messages=[{"role": "user", "content": user}],
-        )
+        data = complete_json(system, user, max_tokens=4096, strict=False)
     except Exception as e:  # noqa: BLE001
         log.warning("category fit LLM failed: %s", e)
         return []
 
-    text = "".join(b.text for b in resp.content if getattr(b, "type", "") == "text").strip()
-    if text.startswith("```"):
-        text = text.strip("`")
-        if text.startswith("json"):
-            text = text[4:]
-        text = text.strip()
-    try:
-        rows = json.loads(text)
-    except json.JSONDecodeError:
-        log.warning("category fit: invalid JSON from Haiku")
-        return []
-
+    rows = data.get("results") if isinstance(data, dict) else []
     out: list[CategoryFit] = []
-    for row in rows:
+    for row in rows or []:
         if not isinstance(row, dict):
             continue
-        scores = {k: int(v) for k, v in (row.get("scores") or {}).items() if isinstance(v, (int, float))}
+        scores = {
+            k: int(v) for k, v in (row.get("scores") or {}).items()
+            if isinstance(v, (int, float))
+        }
         top = row.get("top_category") or (max(scores, key=scores.get) if scores else "other")
         out.append(
             CategoryFit(

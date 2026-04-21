@@ -317,9 +317,10 @@ async def _run(run_id: int) -> None:
         cost_cents=cost_cents,
     )
 
-    # Single budget event for the aggregate cost
+    # Single budget event for the aggregate cost (OpenAI now; DataForSEO
+    # portion is small and already rolled into cost_cents).
     await budget.track(
-        "anthropic",
+        "openai",
         "deep-research",
         amount_cents=cost_cents,
         note=f"deep_research run={run_id} seed={seed} depth={depth}",

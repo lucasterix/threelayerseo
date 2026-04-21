@@ -138,7 +138,7 @@ async def _generate_homepage(site_id: int) -> None:
             site.meta = meta
             site.status = SiteStatus.LIVE if prev_status == SiteStatus.DRAFT else prev_status
             await session.commit()
-            await budget.track("anthropic", "homepage", site_id=site.id)
+            await budget.track("openai", "homepage", site_id=site.id)
             log.info("homepage generated for site %s (%s)", site.id, site.domain.name)
         except Exception as e:  # noqa: BLE001
             site.status = prev_status
@@ -205,7 +205,7 @@ async def _generate_legal(site_id: int) -> None:
             log.exception("privacy generation failed for site %s", site_id)
 
         await session.commit()
-        await budget.track("anthropic", "legal", site_id=site_id, note="imprint+privacy")
+        await budget.track("openai", "legal", site_id=site_id, note="imprint+privacy")
         log.info("legal pages generated for site %s", site_id)
 
 

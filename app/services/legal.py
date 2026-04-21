@@ -1,4 +1,4 @@
-"""Auto-generate Impressum + Datenschutzerklärung via Claude.
+"""Auto-generate Impressum + Datenschutzerklärung via OpenAI.
 
 These are legal documents in Germany:
 - Impressum per §5 TMG + §18(2) MStV (contact data, liable person, tax ID)
@@ -14,13 +14,11 @@ from __future__ import annotations
 import logging
 
 import markdown as md_lib
-from anthropic import Anthropic
 
 from app.config import settings
+from app.services.llm import complete_text
 
 log = logging.getLogger(__name__)
-
-LEGAL_MODEL = "claude-haiku-4-5-20251001"
 
 SYSTEM_IMPRINT = """Du bist ein präziser Rechtstexter für deutsche
 Websites. Erstelle ein vollständiges Impressum nach §5 TMG und §18(2)
@@ -81,7 +79,6 @@ Regeln:
 
 
 def _operator_block() -> str:
-    """Build the operator context string. Raises if the minimum set is missing."""
     if not settings.operator_name or not settings.operator_email:
         raise RuntimeError(
             "OPERATOR_NAME and OPERATOR_EMAIL must be set in .env before "
@@ -99,29 +96,13 @@ def _operator_block() -> str:
     return "\n".join(lines)
 
 
-def _client() -> Anthropic:
-    if not settings.anthropic_api_key:
-        raise RuntimeError("ANTHROPIC_API_KEY not set")
-    return Anthropic(api_key=settings.anthropic_api_key)
-
-
-def _call(system: str, user: str) -> str:
-    resp = _client().messages.create(
-        model=LEGAL_MODEL,
-        max_tokens=2048,
-        system=system,
-        messages=[{"role": "user", "content": user}],
-    )
-    return "".join(b.text for b in resp.content if getattr(b, "type", "") == "text").strip()
-
-
 def generate_imprint_markdown(site_title: str, site_domain: str) -> str:
     user = (
         f"Betreiberdaten:\n{_operator_block()}\n\n"
         f"Website: {site_title} ({site_domain})\n"
         "Erstelle jetzt das Impressum."
     )
-    return _call(SYSTEM_IMPRINT, user)
+    return complete_text(SYSTEM_IMPRINT, user, max_tokens=2000).strip()
 
 
 def generate_privacy_markdown(site_title: str, site_domain: str) -> str:
@@ -130,7 +111,7 @@ def generate_privacy_markdown(site_title: str, site_domain: str) -> str:
         f"Website: {site_title} ({site_domain})\n"
         "Erstelle jetzt die Datenschutzerklärung."
     )
-    return _call(SYSTEM_PRIVACY, user)
+    return complete_text(SYSTEM_PRIVACY, user, max_tokens=2000).strip()
 
 
 def to_html(markdown_text: str) -> str:

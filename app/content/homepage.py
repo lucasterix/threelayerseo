@@ -1,23 +1,20 @@
-"""Homepage copy generator.
+"""Homepage copy generator (OpenAI gpt-4o-mini).
 
-Produces hero + about sections for a site's landing page. Runs the same
-two-stage pipeline as posts but with a homepage-specific prompt and
-a shorter word budget.
+Produces hero + about sections for a site's landing page. Runs the
+same two-stage pipeline as posts but with a homepage-specific prompt
+and a shorter word budget.
 """
 from __future__ import annotations
 
 import logging
 
 import markdown as md_lib
-from anthropic import Anthropic
 
-from app.config import settings
 from app.content.research import research
 from app.models import Tier
+from app.services.llm import complete_text
 
 log = logging.getLogger(__name__)
-
-HOMEPAGE_MODEL = "claude-haiku-4-5-20251001"
 
 TIER_STYLE = {
     Tier.BAD: "simple, short sentences, slightly amateur blog voice, no jargon.",
@@ -45,9 +42,6 @@ def generate_homepage_markdown(
     language: str = "de",
     wayback_context: str | None = None,
 ) -> tuple[str, dict | None]:
-    if not settings.anthropic_api_key:
-        raise RuntimeError("ANTHROPIC_API_KEY not set")
-
     # Light research to ground the copy in real topic framing. Skippable —
     # for bare site bootstraps we tolerate a failure here.
     brief: dict | None
@@ -57,7 +51,6 @@ def generate_homepage_markdown(
         log.warning("homepage research skipped", exc_info=True)
         brief = None
 
-    client = Anthropic(api_key=settings.anthropic_api_key)
     user_parts = [
         f"Topic: {topic}",
         f"Language: {language}",
@@ -80,13 +73,8 @@ def generate_homepage_markdown(
         user_parts.append(f"Research brief:\n{brief}")
     user_parts.append("Produce the homepage Markdown now.")
     user = "\n\n".join(user_parts)
-    resp = client.messages.create(
-        model=HOMEPAGE_MODEL,
-        max_tokens=1500,
-        system=SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": user}],
-    )
-    md = "".join(b.text for b in resp.content if getattr(b, "type", "") == "text")
+
+    md = complete_text(SYSTEM_PROMPT, user, max_tokens=1500)
     return md.strip(), brief
 
 

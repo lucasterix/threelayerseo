@@ -54,7 +54,7 @@ async def inject(markdown: str, post_slug: str, post_id: int, site_id: int) -> s
         md_img = f"![{title}](/media/{saved})"
         replacements.append((m.start(), m.end(), md_img))
         await budget.track(
-            "anthropic", "chart-planner", site_id=site_id, post_id=post_id, note=description[:120]
+            "openai", "chart-planner", site_id=site_id, post_id=post_id, note=description[:120]
         )
 
     # Apply replacements back-to-front so indices stay valid.

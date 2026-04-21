@@ -25,16 +25,22 @@ log = logging.getLogger(__name__)
 # Rough unit costs in EUR cents (approximate — use to budget, not bill).
 # Updated when OpenAI/Anthropic pricing changes.
 UNIT_COSTS = {
-    # OpenAI
+    # OpenAI paid calls
     ("openai", "research"): 3,          # o4-mini-deep-research per call
     ("openai", "image-dalle-3"): 4,     # dall-e-3 standard 1024x1024
     ("openai", "image-dalle-2"): 2,     # dall-e-2 1024x1024
     ("openai", "image-gpt-image-1"): 2,
-    # Anthropic
-    ("anthropic", "writer"): 5,         # Claude Opus post
-    ("anthropic", "homepage"): 2,       # Claude Haiku homepage
-    ("anthropic", "legal"): 1,          # Claude Haiku imprint or privacy
-    ("anthropic", "clustering"): 1,
+    # OpenAI simple tasks — covered by the 1M free tokens/day grant,
+    # zero effective cost up to that cap.
+    ("openai", "homepage"): 0,
+    ("openai", "legal"): 0,
+    ("openai", "clustering"): 0,
+    ("openai", "category-fit"): 0,
+    ("openai", "chart-planner"): 0,
+    ("openai", "brainstorm"): 0,
+    ("openai", "deep-research"): 0,
+    # Anthropic — only writer stays here now
+    ("anthropic", "writer"): 5,         # Claude Opus per post
     # DataForSEO
     ("dataforseo", "keyword-volumes"): 1,
     ("dataforseo", "keyword-ideas"): 1,

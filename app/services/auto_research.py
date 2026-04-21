@@ -4,35 +4,31 @@ Given a single seed phrase ("diabetes tipps", "hundefutter"), runs the
 full funnel in one call:
 
   1. Expand the seed to 30+ related keywords via DataForSEO keyword_ideas
-     (fallback: Haiku brainstorm if DataForSEO isn't reachable / verified).
-  2. Cluster those keywords into topical silos via Claude Haiku.
-  3. Ask Haiku to invent 15-20 domain-name candidates (TLD-free) that
+     (fallback: OpenAI brainstorm if DataForSEO isn't reachable / verified).
+  2. Cluster those keywords into topical silos via OpenAI.
+  3. Ask OpenAI to invent 15-20 domain-name candidates (TLD-free) that
      match the niche and the winning cluster.
   4. Cartesian-multiply candidates × configured TLDs.
   5. Bulk-check availability at INWX.
   6. Score every *available* candidate with the category-fit classifier
      so the UI can pick a badge.
 
-Every step degrades gracefully — if DataForSEO is 403, Haiku keyword
-brainstorm takes over; if category_fit fails we just return empty fits.
+Every step degrades gracefully.
 """
 from __future__ import annotations
 
-import json
 import logging
+import re
 from dataclasses import dataclass, field
 
-from anthropic import Anthropic
-
-from app.config import settings
 from app.services.category_fit import CategoryFit, score_bulk
 from app.services.clustering import cluster_keywords
 from app.services.domains import DEFAULT_TLDS, check_availability
 from app.services.keywords import KeywordIdea, keyword_ideas
+from app.services.llm import complete_json
 
 log = logging.getLogger(__name__)
 
-BRAINSTORM_MODEL = "claude-haiku-4-5-20251001"
 
 _DOMAIN_BRAINSTORM_SYSTEM = """Du generierst kurze, lesbare Domain-Namen
 (ohne TLD) für deutschsprachige SEO-Blogs in einer bestimmten Nische.
@@ -45,14 +41,14 @@ Regeln:
 - Keine existierenden Marken.
 - Mische Typen: Guide/Ratgeber/Tipps/Wissen/Info/Blog/Magazin/Portal.
 
-Gib ein JSON-Array von Strings zurück, 15-20 Namen. Keine Prosa,
-keine Code-Fences."""
+Gib ein JSON-Objekt der Form {"names": ["...", "..."]} zurück,
+15-20 Einträge, nur lowercase-Strings."""
 
 
 _KEYWORD_BRAINSTORM_SYSTEM = """Erzeuge 30 verwandte deutsche Suchbegriffe
 zu einem Seed. Intent-Mix: je ein Drittel informational (Was/Wie/Warum),
 commercial (beste / vergleich / test) und transactional (kaufen / preis).
-Ausgabe: JSON-Array von Strings, keine Prosa."""
+Ausgabe: JSON-Objekt der Form {"keywords": ["...", "..."]}, 30 Einträge."""
 
 
 @dataclass
@@ -79,29 +75,20 @@ class AutoResearchResult:
 
 
 def _haiku_brainstorm_keywords(seed: str) -> list[str]:
-    if not settings.anthropic_api_key:
-        return []
-    client = Anthropic(api_key=settings.anthropic_api_key)
+    """Historical name kept so deep_research_job's import still works.
+    Runs through OpenAI now.
+    """
     try:
-        resp = client.messages.create(
-            model=BRAINSTORM_MODEL,
+        data = complete_json(
+            _KEYWORD_BRAINSTORM_SYSTEM,
+            f"Seed: {seed}",
             max_tokens=1500,
-            system=_KEYWORD_BRAINSTORM_SYSTEM,
-            messages=[{"role": "user", "content": f"Seed: {seed}"}],
+            strict=False,
         )
     except Exception as e:  # noqa: BLE001
         log.warning("keyword brainstorm failed: %s", e)
         return []
-    text = "".join(b.text for b in resp.content if getattr(b, "type", "") == "text").strip()
-    if text.startswith("```"):
-        text = text.strip("`")
-        if text.startswith("json"):
-            text = text[4:]
-        text = text.strip()
-    try:
-        items = json.loads(text)
-    except json.JSONDecodeError:
-        return []
+    items = (data or {}).get("keywords") or []
     return [str(x).lower() for x in items if isinstance(x, str)][:40]
 
 
@@ -110,39 +97,21 @@ def _haiku_domain_brainstorm(
     keywords: list[str],
     category_hint: str | None = None,
 ) -> list[str]:
-    if not settings.anthropic_api_key:
-        return []
-    client = Anthropic(api_key=settings.anthropic_api_key)
     prompt = (
         f"Nische/Seed: {seed}\n"
         f"Beispiel-Keywords aus der Nische: {', '.join(keywords[:25])}\n"
     )
     if category_hint:
         prompt += f"Kategorie-Fokus: {category_hint}\n"
-    prompt += "Bitte generiere jetzt die Domain-Namen als JSON-Array."
+    prompt += "Bitte generiere jetzt die Domain-Namen."
     try:
-        resp = client.messages.create(
-            model=BRAINSTORM_MODEL,
-            max_tokens=1000,
-            system=_DOMAIN_BRAINSTORM_SYSTEM,
-            messages=[{"role": "user", "content": prompt}],
+        data = complete_json(
+            _DOMAIN_BRAINSTORM_SYSTEM, prompt, max_tokens=1200, strict=False
         )
     except Exception as e:  # noqa: BLE001
         log.warning("domain brainstorm failed: %s", e)
         return []
-    text = "".join(b.text for b in resp.content if getattr(b, "type", "") == "text").strip()
-    if text.startswith("```"):
-        text = text.strip("`")
-        if text.startswith("json"):
-            text = text[4:]
-        text = text.strip()
-    try:
-        items = json.loads(text)
-    except json.JSONDecodeError:
-        return []
-    # Normalise: lowercase, strip, drop anything that wouldn't be valid as a label
-    import re
-
+    items = (data or {}).get("names") or []
     out: list[str] = []
     seen: set[str] = set()
     for x in items:
@@ -166,7 +135,6 @@ def run(
 ) -> AutoResearchResult:
     tlds = tlds or ["de", "com", "info"]
 
-    # 1. Keyword expansion
     keywords: list[KeywordIdea] = []
     used_fallback = False
     try:
@@ -181,7 +149,6 @@ def run(
         ]
         used_fallback = True
 
-    # 2. Cluster (best-effort)
     clusters: list[dict] = []
     if keywords:
         try:
@@ -189,7 +156,6 @@ def run(
         except Exception:  # noqa: BLE001
             log.warning("clustering failed", exc_info=True)
 
-    # 3. Domain-name brainstorm
     kw_terms = [k.keyword for k in keywords[:25]]
     base_names = _haiku_domain_brainstorm(seed, kw_terms, category_hint)
     if not base_names:
@@ -202,17 +168,14 @@ def run(
             used_fallback_keywords=used_fallback,
         )
 
-    # 4. Cartesian × TLDs
     candidates = [f"{name}.{tld}" for name in base_names for tld in tlds]
 
-    # 5. INWX availability
     try:
         avails = check_availability(candidates)
     except Exception:  # noqa: BLE001
         log.warning("INWX availability check failed", exc_info=True)
         avails = []
 
-    # 6. Category-fit for the available ones
     available_names = [a.name for a in avails if a.available]
     fits: dict[str, CategoryFit] = {}
     if available_names:
@@ -237,7 +200,6 @@ def run(
                 category_reasoning=fit.reasoning if fit else None,
             )
         )
-    # Sort: available first, then by category_score desc, then by price asc.
     domain_candidates.sort(
         key=lambda c: (not c.available, -c.category_score, c.price_cents or 99999)
     )
